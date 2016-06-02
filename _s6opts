@@ -33,7 +33,7 @@ case $state in
 			(add)
 				local list_dir
 				list_dir=( /etc/s6-serv/available/*(-/N:t) )
-				(( $#list_dir )) && _values list_dir $list_dir && ret=0
+				(( $#list_dir )) && _values services $list_dir && ret=0
 				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
 			(update)
@@ -42,7 +42,7 @@ case $state in
 			(switch)
 				local list_dir
 				list_dir=( /etc/s6/compiled/*(-/N:t) )
-				(( $#list_dir )) && _values list_dir $list_dir && ret=0
+				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
 			esac
