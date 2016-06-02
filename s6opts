@@ -25,6 +25,9 @@ case "${1}" in
 	add)
 		add "${name}"
 		;;
+	remove)
+		remove "${name}"
+		;;
 	update)
 		update "${name}"
 		;;

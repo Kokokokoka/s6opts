@@ -16,10 +16,11 @@ _arguments -C \
 case $state in
 	(cmds) 
 		local commands; commands=(
-			'add:enable a service on service database"' 
+			'add:add a service on service database'
+			'remove:remove a service on service database' 
 			'update:compile and update service database at boot time' 
 			'switch:switch the service database with a given name'
-			'list:List service enabled'
+			'list:list service enabled'
              ) 
          _describe -t commands 's6opts command' commands && ret=0    
         ret=0
@@ -33,6 +34,12 @@ case $state in
 			(add)
 				local list_dir
 				list_dir=( /etc/s6-serv/available/*(-/N:t) )
+				(( $#list_dir )) && _values services $list_dir && ret=0
+				[[ $words[CURRENT] = */* ]] && _directories && ret=0
+				;;
+			(remove)
+				local list_dir
+				list_dir=( /etc/s6-serv/enabled/*(-/N:t) )
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
