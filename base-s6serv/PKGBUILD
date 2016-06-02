@@ -1,0 +1,78 @@
+# Maintainer: Eric Vidal <eric@obarun.org>
+
+pkgname=base-s6serv
+pkgver=0.1
+pkgrel=1
+pkgdesc="base service for s6"
+arch=(x86_64)
+license=('beerware')
+depends=('base' 's6' 's6-rc' 's6-boot')
+conflicts=()
+#install=base-s6serv.install
+source=('base.daemon.dependencies.s6'
+		'base.daemon.down.s6'
+		'base.daemon.finish.s6'
+		'base.daemon.notification-fd.s6'
+		'base.daemon.notsetsid.s6'
+		'base.daemon.pipeline-name.s6'
+		'base.daemon.producer-for.s6'
+		'base.daemon.run.s6'
+		'base.daemon.timeout-down.s6'
+		'base.daemon.timeout-finish.s6'
+		'base.daemon.timeout-up.s6'		
+		'base.daemon.type.s6'
+		'base.daemon.up.s6'		
+		'base.log.consumer-for.s6'
+		'base.log.dependencies.s6'
+		'base.log.finish.s6'
+		'base.log.run.s6'
+		'base.log.timeout-finish.s6'
+		'base.log.type.s6'
+		'user.base.contents.s6'
+		'user.base.type.s6'
+		'LICENSE')
+md5sums=('03f494d8daf070742e13ed5da88b8bba'
+         '71abe97e2554d37f1d12c5bf4945297f'
+         '7dbeb1b0248e1d08f3b5bef2c9740314'
+         'd6904c6e34a70f263365de1ce56bcdca'
+         'bad17a52b930317f2277bb046a91c85d'
+         'c310f970ba1b740e56d61c6bca3fd810'
+         'c7ddb8398cd5c587d087e5bb2615d773'
+         '42c13bdd7f61c06ac59c1aaca9c0f07a'
+         '7dbeb1b0248e1d08f3b5bef2c9740314'
+         '80f7ac8a34abebb83908831b1426189e'
+         '42c13bdd7f61c06ac59c1aaca9c0f07a'
+         'b5ea1fc2a2a5d3f15444b5adcc1f5cf2'
+         '191a37ae657aa17e37e75d0242865dba')
+
+package() {
+	
+	# bundle , trouble here user-base need a maj at base e.g user-Base
+	install -Dm 0644 "$srcdir/user.base.contents.s6" "$pkgdir/etc/s6-serv/available/user-base/contents"
+	install -Dm 0644 "$srcdir/user.base.type.s6" "$pkgdir/etc/s6-serv/available/user-base/type"
+	
+	# daemon
+	install -Dm 0644 "$srcdir/base.daemon.dependencies.s6" "$pkgdir/etc/s6-serv/available/base-daemon/dependencies"
+	install -Dm 0644 "$srcdir/base.daemon.down.s6" "$pkgdir/etc/s6-serv/available/base-daemon/down"
+	install -Dm 0644 "$srcdir/base.daemon.finish.s6" "$pkgdir/etc/s6-serv/available/base-daemon/finish"
+	install -Dm 0644 "$srcdir/base.daemon.notification-fd.s6" "$pkgdir/etc/s6-serv/available/base-daemon/notification-fd"
+	install -Dm 0644 "$srcdir/base.daemon.notsetsid.s6" "$pkgdir/etc/s6-serv/available/base-daemon/notsetsid"
+	install -Dm 0644 "$srcdir/base.daemon.pipeline-name.s6" "$pkgdir/etc/s6-serv/available/base-daemon/pipeline-name"
+	install -Dm 0644 "$srcdir/base.daemon.producer-for.s6" "$pkgdir/etc/s6-serv/available/base-daemon/producer-for"
+	install -Dm 0644 "$srcdir/base.daemon.run.s6" "$pkgdir/etc/s6-serv/available/base-daemon/run"
+	install -Dm 0644 "$srcdir/base.daemon.timeout-down.s6" "$pkgdir/etc/s6-serv/available/base-daemon/timeout-down"
+	install -Dm 0644 "$srcdir/base.daemon.timeout-finish.s6" "$pkgdir/etc/s6-serv/available/base-daemon/timeout-finish"
+	install -Dm 0644 "$srcdir/base.daemon.timeout-up.s6" "$pkgdir/etc/s6-serv/available/base-daemon/timeout-up"
+	install -Dm 0644 "$srcdir/base.daemon.type.s6" "$pkgdir/etc/s6-serv/available/base-daemon/type"
+	install -Dm 0644 "$srcdir/base.daemon.up.s6" "$pkgdir/etc/s6-serv/available/base-daemon/up"
+	
+	# log
+	install -Dm 0644 "$srcdir/base.log.consumer-for.s6" "$pkgdir/etc/s6-serv/available/base-log/consumer-for"
+	install -Dm 0644 "$srcdir/base.log.dependencies.s6" "$pkgdir/etc/s6-serv/available/base-log/dependencies"
+	install -Dm 0644 "$srcdir/base.log.finish.s6" "$pkgdir/etc/s6-serv/available/base-log/finish"
+	install -Dm 0644 "$srcdir/base.log.run.s6" "$pkgdir/etc/s6-serv/available/base-log/run"
+	install -Dm 0644 "$srcdir/base.log.timeout-finish.s6" "$pkgdir/etc/s6-serv/available/base-log/timeout-finish"
+	install -Dm 0644 "$srcdir/base.log.type.s6" "$pkgdir/etc/s6-serv/available/base-log/type"
+	
+	install -Dm 0644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/base-s6serv/LICENSE"
+}

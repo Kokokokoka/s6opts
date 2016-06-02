@@ -1,0 +1,267 @@
+#!/bin/bash
+
+#set -e
+
+. /etc/s6opts/s6opts.conf
+
+##		Shell color 
+
+bold=$(tput bold)
+reset=$(tput sgr0)
+red=$(tput setaf 1)
+bred=${bold}$(tput setaf 1)
+green=$(tput setaf 2)
+bgreen=${bold}$(tput setaf 2)
+yellow=$(tput setaf 3)
+byellow=${bold}$(tput setaf 3)
+blue=$(tput setaf 4)
+bblue=${bold}$(tput setaf 4)
+
+
+## 		Information display by the script 
+
+echo_bold(){
+	local msg=$1; shift 
+	printf "${bold}${msg}${reset}\n" "${@}" >&1
+}
+echo_info(){
+	local msg=$1; shift 
+	printf "${byellow}==>>${msg} ${reset}\n" "${@}" >&1
+}
+echo_info_menu(){
+	local msg=$1; shift 
+	printf "${byellow}${msg} ${reset}\n" "${@}" >&1
+}
+echo_retry(){
+	local msg=$1; shift 
+	printf "${bblue}==>>${msg} ${reset}\n" "${@}" >&1
+}
+echo_valid(){
+	local msg=$1; shift 
+	printf "${bgreen}    ->${msg} ${reset}\n" "${@}" >&1
+}
+echo_notvalid(){
+	local msg=$1; shift 
+	printf "${byellow}    ->${msg} ${reset}\n" "${@}" >&1
+}
+echo_display(){
+	local msg=$1; shift 
+	printf "${bold}==>>${msg} ${reset}\n" "${@}" >&1
+}
+echo_error(){
+	local msg=$1; shift 
+	printf "${bred}    ->${msg} ${reset}\n" "${@}" >&2
+}
+answer(){
+	echo_retry " Please answer y or n :"
+}
+
+##		define some variables
+reply=""
+list_serv=()
+rc=""
+
+## 		common functions
+
+die (){
+      local message 
+      message="$1"
+ 
+      if [[ -n "$message" ]] ; then
+        echo "${bred}==>> Error: ${message}${reset}"
+      else
+        echo "${bred}==>> Error: Script can not continue"
+      fi
+      exit 1
+}
+
+check_elements(){
+	for e in "${@:2}"; do [[ "${e}" == "${1}" ]] && break; done;
+}
+
+usage(){
+	echo ""
+	echo_bold " Usage: ${0} [options] [service_name|database_name]"
+	echo ""
+	echo " General options:"
+    echo "     add : enable a service on service database"
+    echo "     update : compile and update service database at boot time"
+    echo "     switch : switch the service database with a given name"
+	echo "     list : list service enabled on database"
+}
+
+##		main fonction
+
+add(){
+	local name
+	name="${1}"
+	#check if exist or not
+	check_dir "$available_path/${name}"
+	if (( "$rc" )); then # rc=1
+		echo_error " ${name} doesn't exist, choose an another name"
+		unset rc
+		exit 1
+	fi	
+	unset rc
+	# bundle or classic service?
+	search_in_dir "$available_path" "$name" "contents"
+	# if bundle, create symlink for all name in contents file 
+	if (( ! "$rc" )); then # it is a bundle
+		parse_file "$available_path/$name" "contents"
+		while read -d "," line; do
+			make_symlinks "-sf" "$available_path/$line" "$enabled_path" "$line"
+		done <<< "${list_serv[@]}"
+		list_serv=()
+		unset rc
+		make_symlinks "-sf" "$available_path/$name" "$enabled_path" "$name"
+		# be sure that the name doesn't exist on file contents
+		search_in_file "${available_path}/all-User" "contents" "$name"
+		if (( "$rc" )); then
+			echo "${name}" >> "${available_path}/all-User/contents"
+			unset rc
+		fi
+	else
+		make_symlinks "-sf" "$available_path/$name" "$enabled_path" "$name"
+		unset rc
+		# be sure that the name doesn't exist on file contents
+		search_in_file "${available_path}/all-User" "contents" "$name"
+		if (( "$rc" )); then
+			echo "${name}" >> "${available_path}/all-User/contents"
+			unset rc
+		fi
+	fi
+	unset name
+	exit 0
+}
+
+update(){
+	local named
+	named="${1}"
+	
+	# check exist or not
+	check_dir "${database_path}/${named}"
+	if (( ! "$rc" )); then
+		die "$named database already exist, please choose another one"
+	fi
+	unset rc
+	
+	# compile new database
+	s6-rc-compile "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}" || die "Impossible to compile the new database"
+	
+	# udpate current database to new database
+	s6-rc-update "${database_path}/${named}" || die "Impossible to update the new database"
+	
+	# update the symlinks to boot with the new database
+	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible current symlinks"
+}
+
+switch(){
+	local named
+	named="${1}"
+	
+	# check if exist or not
+	check_dir "${database_path}/${named}"
+	if (( "$rc" )); then
+		die "$named doesn't exist, please choose another one"
+	fi
+	unset rc
+	
+	# udpate current database to new database
+	s6-rc-update "${database_path}/${named}" || die "Impossible to update the new database"
+	
+	# update the symlinks to boot with the new database
+	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible current symlinks"
+	
+	unset named	
+}
+
+list(){
+	ls -1 --color "${enabled_path}"
+	exit 0
+}
+
+##		sub functions
+
+# ${1} path directories
+# ${2} name of directory
+# ${3} searched files
+# return rc=0 success, rc=1 fail
+search_in_dir(){
+	local path_dir search named sub_dir 
+	local -a list files
+	path_dir="${1}"
+	named="${2}"
+	search="${3}"
+	
+	mapfile -t list < <(ls --group-directories-first -m $path_dir/)
+	
+	for sub_dir in "$named"; do
+		mapfile -t files < <(ls --group-directories-first -m $path_dir/$named)
+		while read -d "," here; do
+			case $here in
+				$search) rc=0 && break ;;
+				*) rc=1 ;;
+			esac
+		done <<< ${files[@]}
+	done <<< "${list[@]}"
+}
+
+
+# ${1} path to the file
+# ${2} name of the file
+# ${3} searched on to the file
+# return rc=0 on success, rc=1 on fail
+search_in_file(){
+	local path_file named search line
+	path_file="${1}"
+	named="${2}"
+	search="${3}"
+	in_file="${path_file}/${named}"
+	while read line;do
+		case $line in
+			$search) rc=0 && break ;;
+			*) rc=1 ;;
+		esac
+	done < "${in_file}"
+}
+
+# ${1} path to the file
+# ${2} file to parse
+parse_file(){
+	local check path_file named
+	path_file="${1}"
+	named="${2}"
+	while read check; do
+		list_serv+=($check,)
+	done < "${path_file}/${named}"
+}
+
+# ${1} option to pass
+# ${2} target 
+# ${3} where to create it
+# ${4} name of the symlinks
+make_symlinks(){
+	local opt target where named
+	opt="${1}"
+	target="${2}"
+	where="${3}"
+	named="${4}"
+
+	ln "${opt}" "${target}" "${where}/${named}"
+
+	unset opt target where named
+}
+
+# ${1} name of the directory
+# return rc=0 on success
+check_dir(){
+	local dir
+	dir="${1}"
+	if [ -d "${dir}" ]; then
+		rc=0
+	else
+		rc=1
+	fi
+}
+
+

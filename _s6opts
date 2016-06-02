@@ -1,0 +1,55 @@
+#compdef s6opts
+# completion for svopts
+# Eric Vidal <eric@obarun.org>
+
+_s6opts(){
+
+typeset -A opt_args
+local ret=1 context state line curcontext="$curcontext"
+
+_arguments -C \
+	'1:cmd:->cmds' \
+	'*:: :->args' \
+	&& ret=0
+
+	
+case $state in
+	(cmds) 
+		local commands; commands=(
+			'add:enable a service on service database"' 
+			'update:compile and update service database at boot time' 
+			'switch:switch the service database with a given name'
+			'list:List service enabled'
+             ) 
+         _describe -t commands 's6opts command' commands && ret=0    
+        ret=0
+        ;;
+    (args)
+		curcontext="${curcontext%:*:*}:svopts-cmd-$words[1]:"
+		case $words[1] in
+			(list)
+				_message 'no more arguments' && ret=0
+				;;	
+			(add)
+				local list_dir
+				list_dir=( /etc/s6-serv/available/*(-/N:t) )
+				(( $#list_dir )) && _values list_dir $list_dir && ret=0
+				[[ $words[CURRENT] = */* ]] && _directories && ret=0
+				;;
+			(update)
+				_message 'define a database name' && ret=0
+				;;
+			(switch)
+				local list_dir
+				list_dir=( /etc/s6/compiled/*(-/N:t) )
+				(( $#list_dir )) && _values list_dir $list_dir && ret=0
+				[[ $words[CURRENT] = */* ]] && _directories && ret=0
+				;;
+			esac
+	;;
+esac
+
+return $ret
+}
+
+_s6opts "$@"

@@ -1,0 +1,44 @@
+#!/bin/bash
+# This script is under license BEER-WARE
+# "THE BEER-WARE LICENSE" (Revision 42):
+# <eric@obarun.org> wrote this file.  As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal
+
+#set -e
+
+. /etc/s6opts/s6opts.conf
+. /etc/s6opts/s6opts_functions
+
+(( EUID == 0 )) || die " You must be run this script with root privileges"
+
+if [ -z "${2}" ] && [ "${1}" != "list" ]; then
+	usage
+	exit 1
+fi
+
+
+
+name="${2}"
+
+case "${1}" in
+	add)
+		add "${name}"
+		;;
+	update)
+		update "${name}"
+		;;
+	switch)
+		switch "${name}"
+		;;
+	list)
+		list
+		;;
+	*)
+		usage
+		exit 1
+		;;
+esac
+exit 0
+
+# vim:set ts=2 sw=2 et:
