@@ -84,53 +84,126 @@ usage(){
 	echo_bold " Usage: ${0} [options] [service_name|database_name]"
 	echo ""
 	echo " General options:"
-    echo "     add : enable a service on service database"
+    echo "     add : add a service on service database"
+    echo "     remove : remove a service on service database"
     echo "     update : compile and update service database at boot time"
-    echo "     switch : switch the service database with a given name"
+    echo "     switch : switch the current service database with a given name"
 	echo "     list : list service enabled on database"
 }
 
 ##		main fonction
 
 add(){
-	local name
-	name="${1}"
+	local named
+	named="${1}"
+	
 	#check if exist or not
-	check_dir "$available_path/${name}"
+	check_dir "${available_path}/${named}"
 	if (( "$rc" )); then # rc=1
-		echo_error " ${name} doesn't exist, choose an another name"
+		echo_error " ${named} doesn't exist, choose an another name"
 		unset rc
 		exit 1
 	fi	
 	unset rc
+	
 	# bundle or classic service?
-	search_in_dir "$available_path" "$name" "contents"
+	search_in_dir "${available_path}" "${named}" "contents"
+	
 	# if bundle, create symlink for all name in contents file 
 	if (( ! "$rc" )); then # it is a bundle
-		parse_file "$available_path/$name" "contents"
+		unset rc
+		parse_file "${available_path}/${named}" "contents"
 		while read -d "," line; do
-			make_symlinks "-sf" "$available_path/$line" "$enabled_path" "$line"
+			make_symlinks "-sfT" "${available_path}/${line}" "${enabled_path}" "${line}"
 		done <<< "${list_serv[@]}"
 		list_serv=()
 		unset rc
-		make_symlinks "-sf" "$available_path/$name" "$enabled_path" "$name"
+		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}" "${named}"
+		
 		# be sure that the name doesn't exist on file contents
-		search_in_file "${available_path}/all-User" "contents" "$name"
+		search_in_file "${available_path}/all-User" "contents" "${named}"
 		if (( "$rc" )); then
-			echo "${name}" >> "${available_path}/all-User/contents"
 			unset rc
+			echo "${named}" >> "${available_path}/all-User/contents"
+			# remove empty line
+			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
 		fi
-	else
-		make_symlinks "-sf" "$available_path/$name" "$enabled_path" "$name"
 		unset rc
+	else
+		unset rc
+		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}" "${named}"
+		
 		# be sure that the name doesn't exist on file contents
-		search_in_file "${available_path}/all-User" "contents" "$name"
+		search_in_file "${available_path}/all-User" "contents" "${named}"
 		if (( "$rc" )); then
-			echo "${name}" >> "${available_path}/all-User/contents"
 			unset rc
+			echo "${named}" >> "${available_path}/all-User/contents"
+			# remove empty line
+			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
 		fi
+		unset rc
 	fi
-	unset name
+	unset named
+	exit 0
+}
+
+remove(){
+	local named
+	named="${1}"
+	
+	#check if exist or not
+	check_dir "${enabled_path}/${named}"
+	if (( "$rc" )); then # rc=1
+		unset rc
+		echo_error " ${named} doesn't exist, choose an another name"
+		exit 1
+	fi
+	unset rc
+	
+	# bundle or classic service?
+	search_in_dir "${available_path}" "${named}" "contents"
+	
+	# if bundle, remove symlink for all name in contents file 
+	if (( ! "$rc" )); then # it is a bundle
+		unset rc
+		parse_file "${enabled_path}/${named}" "contents"
+		while read -d "," line; do
+			rm "${enabled_path}/${line}"
+			search_in_file "${available_path}/all-User" "contents" "${line}"
+			if (( ! "$rc" )); then
+				unset rc
+				sed -i "s:${line}::" "${available_path}/all-User/contents"
+				# remove empty line
+				sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+			fi
+		done <<< "${list_serv[@]}"
+		list_serv=()
+		unset rc
+		rm "${enabled_path}/${named}" 
+		
+		# remove bundle name on file contents
+		search_in_file "${available_path}/all-User" "contents" "${named}"
+		if (( ! "$rc" )); then
+			unset rc
+			sed -i "s:${named}::" "${available_path}/all-User/contents"
+			# remove empty line
+			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+		fi
+		unset rc
+	else
+		unset rc
+		rm "${enabled_path}/${named}"
+		# remove service name file contents
+		search_in_file "${available_path}/all-User" "contents" "${named}"
+		if (( ! "$rc" )); then
+			unset rc
+			sed -i "s:${named}::" "${available_path}/all-User/contents"
+			# remove empty line
+			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+		fi
+		unset rc
+	fi
+	unset named
 	exit 0
 }
 
@@ -141,7 +214,7 @@ update(){
 	# check exist or not
 	check_dir "${database_path}/${named}"
 	if (( ! "$rc" )); then
-		die "$named database already exist, please choose another one"
+		die "${named} database already exist, please choose another one"
 	fi
 	unset rc
 	
@@ -153,6 +226,10 @@ update(){
 	
 	# update the symlinks to boot with the new database
 	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible current symlinks"
+	
+	unset named
+	
+	exit 0
 }
 
 switch(){
@@ -173,10 +250,12 @@ switch(){
 	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible current symlinks"
 	
 	unset named	
+	
+	exit 0
 }
 
 list(){
-	ls -1 --color "${enabled_path}"
+	s6-rc -a listall
 	exit 0
 }
 
@@ -193,10 +272,10 @@ search_in_dir(){
 	named="${2}"
 	search="${3}"
 	
-	mapfile -t list < <(ls --group-directories-first -m $path_dir/)
+	mapfile -t list < <(ls --group-directories-first -m ${path_dir}/)
 	
-	for sub_dir in "$named"; do
-		mapfile -t files < <(ls --group-directories-first -m $path_dir/$named)
+	for sub_dir in "${named}"; do
+		mapfile -t files < <(ls --group-directories-first -m ${path_dir}/${named})
 		while read -d "," here; do
 			case $here in
 				$search) rc=0 && break ;;
