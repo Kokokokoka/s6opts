@@ -12,30 +12,42 @@
 
 (( EUID == 0 )) || die " You must be run this script with root privileges"
 
-if [ -z "${2}" ] && [ "${1}" != "list" ]; then
+if [[ -z "${2}" ]] && [[ "${1}" != @(list|which_db) ]]; then
 	usage
 	exit 1
 fi
 
 
 
-name="${2}"
+opts="${2}"
 
 case "${1}" in
 	add)
-		add "${name}"
+		add "${opts}"
 		;;
 	remove)
-		remove "${name}"
+		remove "${opts}"
 		;;
-	update)
-		update "${name}"
+	compile)
+		compile "${opts}"
 		;;
 	switch)
-		switch "${name}"
+		switch "${opts}"
+		;;
+	all)
+		compile_switch "${opts}"
 		;;
 	list)
 		list
+		;;
+	verbose)
+		verbose "${opts}"
+		;;
+	remove_db)
+		remove_db "${opts}"
+		;;
+	which_db)
+		which_db "${opts}"
 		;;
 	*)
 		usage

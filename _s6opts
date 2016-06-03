@@ -18,9 +18,13 @@ case $state in
 		local commands; commands=(
 			'add:add a service on service database'
 			'remove:remove a service on service database' 
-			'update:compile and update service database at boot time' 
-			'switch:switch the service database with a given name'
-			'list:list service enabled'
+			'compile:compile the service database' 
+			'switch:switch the current service database'
+			'all:compile and switch the current database'
+			'list:list of services on current database'
+			'verbose:be more or less verbose (permanent change)'
+			'remove_db:remove a service database'
+			'which_db:current/previous service database used'
              ) 
          _describe -t commands 's6opts command' commands && ret=0    
         ret=0
@@ -28,30 +32,47 @@ case $state in
     (args)
 		curcontext="${curcontext%:*:*}:svopts-cmd-$words[1]:"
 		case $words[1] in
-			(list)
+			list)
 				_message 'no more arguments' && ret=0
 				;;	
-			(add)
+			add)
 				local list_dir
 				list_dir=( /etc/s6-serv/available/*(-/N:t) )
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
-			(remove)
+			remove)
 				local list_dir
 				list_dir=( /etc/s6-serv/enabled/*(-/N:t) )
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
-			(update)
+			compile)
 				_message 'define a database name' && ret=0
 				;;
-			(switch)
+			which_db)
+				local list_dir
+				list_dir=(current previous)
+				(( $#list_dir )) && _values link_name $list_dir && ret=0
+				;;
+			switch)
 				local list_dir
 				list_dir=( /etc/s6/compiled/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
+			all)
+				_message 'define a database name' && ret=0
+				;;
+			verbose)
+				_message 'only 0,1,2, or 3 are valid'
+				;;
+			remove_db)
+				local list_dir
+				list_dir=( /etc/s6/compiled/*(-/N:t) )
+				(( $#list_dir )) && _values database_name $list_dir && ret=0
+				[[ $words[CURRENT] = */* ]] && _directories && ret=0
+				;;	
 			esac
 	;;
 esac

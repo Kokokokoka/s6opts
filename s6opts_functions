@@ -86,9 +86,13 @@ usage(){
 	echo " General options:"
     echo "     add : add a service on service database"
     echo "     remove : remove a service on service database"
-    echo "     update : compile and update service database at boot time"
-    echo "     switch : switch the current service database with a given name"
-	echo "     list : list service enabled on database"
+    echo "     compile : compile the service database"
+    echo "     switch : switch the current service database"
+    echo "     all : compile and switch the current database"
+	echo "     list : list of services on current database"
+	echo "     verbose : be more or less verbose (permanent change)"
+	echo "     remove_db : remove a service database"
+	echo "     which_db : current/previous service database used"
 }
 
 ##		main fonction
@@ -203,11 +207,13 @@ remove(){
 		fi
 		unset rc
 	fi
+	
 	unset named
+	
 	exit 0
 }
 
-update(){
+compile(){
 	local named
 	named="${1}"
 	
@@ -219,13 +225,7 @@ update(){
 	unset rc
 	
 	# compile new database
-	s6-rc-compile "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}" || die "Impossible to compile the new database"
-	
-	# udpate current database to new database
-	s6-rc-update "${database_path}/${named}" || die "Impossible to update the new database"
-	
-	# update the symlinks to boot with the new database
-	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible current symlinks"
+	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}" || die "Impossible to compile the new database"
 	
 	unset named
 	
@@ -233,8 +233,9 @@ update(){
 }
 
 switch(){
-	local named
+	local named curr
 	named="${1}"
+	curr=$(which_db current)
 	
 	# check if exist or not
 	check_dir "${database_path}/${named}"
@@ -244,21 +245,90 @@ switch(){
 	unset rc
 	
 	# udpate current database to new database
-	s6-rc-update "${database_path}/${named}" || die "Impossible to update the new database"
+	s6-rc-update -v"${verbose}" "${database_path}/${named}" || die "Impossible to update the new database"
 	
+	# update the symlinks about previous database
+	make_symlinks "-sfT" "${curr}" "${database_path}" "previous" || die "Impossible to create previous symlinks"
 	# update the symlinks to boot with the new database
-	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible current symlinks"
+	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible to create current symlinks"
 	
-	unset named	
+	unset named	curr
 	
 	exit 0
 }
+
+compile_switch(){
+	local named
+	named="${1}"
+	curr=$(which_db current)
+	
+	compile "${named}"
+	switch "${named}"
+	
+	# update the symlinks about previous database
+	make_symlinks "-sfT" "${curr}" "${database_path}" "previous" || die "Impossible to create previous symlinks"
+	# update the symlinks to boot with the new database
+	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible to create current symlinks"
+	
+	unset named curr
+	
+	exit 0
+}
+
+# ${1} name of symlinks
+which_db(){
+	local named
+	named="${1}"
+	
+	if [[ -z "${named}" ]]; then
+		stat -c%N "${database_path}/current"
+		stat -c%N "${database_path}/previous"
+	else	
+		readlink -v "${database_path}/${1}"
+	fi
+	
+	unset named
+	
+	exit 0
+}
+
 
 list(){
 	s6-rc -a listall
 	exit 0
 }
 
+verbose(){
+	local verb
+	verb="${1}"
+	
+	if [[ "${verb}" != @(0|1|2|3) ]]; then
+		die "the number must be 0,1,2 or 3"
+	fi
+	
+	sed -i "s:verbose=.*$:verbose=${verb}:" /etc/s6opts/s6opts.conf
+	
+	unset verb 
+	
+	exit 0
+}
+
+remove_db(){
+	local named curr
+	named="${1}"
+	curr=$(which_db current)
+	
+	if [[ "${database_path}/${named}" == "${curr}" ]]; then
+		die "Removing the current database is not allowed"
+	fi
+	
+	rm -r "${database_path}/${named}"
+	
+	unset named curr
+	
+	exit 0
+}
+	
 ##		sub functions
 
 # ${1} path directories
@@ -283,6 +353,8 @@ search_in_dir(){
 			esac
 		done <<< ${files[@]}
 	done <<< "${list[@]}"
+	
+	unset path_dir search named sub_dir list files
 }
 
 
@@ -302,6 +374,8 @@ search_in_file(){
 			*) rc=1 ;;
 		esac
 	done < "${in_file}"
+	
+	unset path_file named search line in_file
 }
 
 # ${1} path to the file
@@ -313,6 +387,8 @@ parse_file(){
 	while read check; do
 		list_serv+=($check,)
 	done < "${path_file}/${named}"
+
+	unset check path_file named
 }
 
 # ${1} option to pass
@@ -341,6 +417,8 @@ check_dir(){
 	else
 		rc=1
 	fi
+	
+	unset dir
 }
 
 
