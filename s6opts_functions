@@ -228,8 +228,6 @@ compile(){
 	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}" || die "Impossible to compile the new database"
 	
 	unset named
-	
-	exit 0
 }
 
 switch(){
@@ -253,22 +251,14 @@ switch(){
 	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible to create current symlinks"
 	
 	unset named	curr
-	
-	exit 0
 }
 
 compile_switch(){
 	local named
 	named="${1}"
-	curr=$(which_db current)
 	
 	compile "${named}"
 	switch "${named}"
-	
-	# update the symlinks about previous database
-	make_symlinks "-sfT" "${curr}" "${database_path}" "previous" || die "Impossible to create previous symlinks"
-	# update the symlinks to boot with the new database
-	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible to create current symlinks"
 	
 	unset named curr
 	
