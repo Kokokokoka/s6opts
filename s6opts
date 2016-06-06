@@ -1,9 +1,16 @@
 #!/bin/bash
-# This script is under license BEER-WARE
-# "THE BEER-WARE LICENSE" (Revision 42):
+# Copyright (C) 2015-2016 Eric Vidal <eric@obarun.org>
+#
+# This file is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+# This scripts is under License Beerware.
+#
+# "THE BEERWARE LICENSE" (Revision 42):
 # <eric@obarun.org> wrote this file.  As long as you retain this notice you
 # can do whatever you want with this stuff. If we meet some day, and you think
-# this stuff is worth it, you can buy me a beer in return.   Eric Vidal
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
 
 #set -e
 
@@ -17,42 +24,54 @@ if [[ -z "${2}" ]] && [[ "${1}" != @(list|which_db) ]]; then
 	exit 1
 fi
 
+if [[ ! -h "${database_path}/current" ]] || [[ ! -h "${database_path}/previous" ]]; then
+	cat << EOF
+	
+To properly manage the service database, the symlinks current|previous must exist.
 
+The default is :
+    /etc/s6/compiled/current -> /etc/s6/compiled/default
+    /etc/s6/compiled/previous -> /etc/s6/compiled/previous
+EOF
+exit 1
+fi
 
 opts="${2}"
 
+### very ugly below
+
 case "${1}" in
 	add)
-		add "${opts}"
-		;;
+	    add "${opts}"
+	    ;;
 	remove)
-		remove "${opts}"
-		;;
+	    remove "${opts}"
+	    ;;
 	compile)
-		compile "${opts}"
-		;;
+	    compile "${opts}"
+	    ;;
 	switch)
-		switch "${opts}"
-		;;
+	    switch "${opts}"
+	    ;;
 	all)
-		compile_switch "${opts}"
-		;;
+	    compile_switch "${opts}"
+	    ;;
 	list)
-		list
-		;;
+	    list "${opts}"
+	    ;;
 	verbose)
-		verbose "${opts}"
-		;;
+	    verbose "${opts}"
+	    ;;
 	remove_db)
-		remove_db "${opts}"
-		;;
+	    remove_db "${opts}"
+	    ;;
 	which_db)
-		which_db "${opts}"
-		;;
+	    which_db "${opts}"
+	    ;;
 	*)
-		usage
-		exit 1
-		;;
+	    usage
+	    exit 1
+	    ;;
 esac
 exit 0
 

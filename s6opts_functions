@@ -1,4 +1,16 @@
 #!/bin/bash
+# Copyright (C) 2015-2016 Eric Vidal <eric@obarun.org>
+#
+# This file is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+# This scripts is under License Beerware.
+#
+# "THE BEERWARE LICENSE" (Revision 42):
+# <eric@obarun.org> wrote this file.  As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
 
 #set -e
 
@@ -57,6 +69,7 @@ answer(){
 }
 
 ##		define some variables
+
 reply=""
 list_serv=()
 rc=""
@@ -80,21 +93,23 @@ check_elements(){
 }
 
 usage(){
-	echo ""
-	echo_bold " Usage: ${0} [options] [service_name|database_name]"
-	echo ""
-	echo " General options:"
-    echo "     add : add a service on service database"
-    echo "     remove : remove a service on service database"
-    echo "     compile : compile the service database"
-    echo "     switch : switch the current service database"
-    echo "     all : compile and switch the current database"
-	echo "     list : list of services on current database"
-	echo "     verbose : be more or less verbose (permanent change)"
-	echo "     remove_db : remove a service database"
-	echo "     which_db : current/previous service database used"
-}
+	cat << EOF
+	
+${bold}Usage: ${0} [options] [service_name|database_name]${reset}
 
+General options:
+	add : add a service on service database
+	remove : remove a service on service database
+	compile : compile the service database
+	switch : switch the current service database and bring up all new service
+	all : compile and switch the current database
+	list : list of services on current database
+	verbose : be more or less verbose (permanent change)
+	remove_db : remove a service database
+	which_db : current/previous service database used
+EOF
+	exit 0
+}
 ##		main fonction
 
 add(){
@@ -214,53 +229,110 @@ remove(){
 }
 
 compile(){
-	local named
+	local named rc_curr curr curr_parse
+	#named="${1:-current}"
 	named="${1}"
+	rc_curr=1
+	curr=$(which_db current)
+	curr_parse=${curr##*/}
 	
+	check_dir "${database_path}/${named}.old"
+	if (( ! "$rc" )); then
+		rc_curr=0
+		unset rc
+	fi
+	
+	unset rc
+	
+	if [[ "${named}" == "current" ]] || [[ "${named}" == "${curr_parse}" ]]; then
+		named=${curr}
+		named=${named##*/}
+		if (( "$rc_curr" )); then # .old do not exist
+		    cp -rf "${database_path}/${named}" "${database_path}/${named}.old" || die "Impossible to cp ${named} to ${named}.old"
+		    s6-rc-update -v"${verbose}" "${database_path}/${named}.old" || die "Impossible to update the new database"
+		    rm -r "${database_path}/${named}" || die "Impossible to remove ${named}"
+		    make_symlinks "-sfT" "${database_path}/${named}.old" "${database_path}" "current" || die "Impossible to create current symlinks"
+		else # .old exist
+		    s6-rc-update -v"${verbose}" "${database_path}/${named}.old" || die "Impossible to update the new database"
+		    rm -r "${database_path}/${named}" || die "Impossible to remove ${named}"
+		    make_symlinks "-sfT" "${database_path}/${named}.old" "${database_path}" "current" || die "Impossible to create current symlinks"
+		fi
+	fi
+
 	# check exist or not
 	check_dir "${database_path}/${named}"
 	if (( ! "$rc" )); then
-		die "${named} database already exist, please choose another one"
+		rm -r "${database_path}/${named}" || die "Impossible to remove ${named}"
 	fi
+	
 	unset rc
 	
 	# compile new database
 	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}" || die "Impossible to compile the new database"
 	
-	unset named
+	unset named rc_curr curr curr_parse
 }
 
 switch(){
-	local named curr
+	local named rc_curr rc_first curr curr_parse prev prev_parse
+	local -a which_up prev_db
+	#named="${1:-current}"
 	named="${1}"
+	rc_curr=1
+	rc_first=1
 	curr=$(which_db current)
+	curr_parse=${curr##*/}
+	prev=$(which_db previous)
+	prev_parse=${prev##*/}
+	
+	# need to know if it's the first use of s6opts
+	if [[ "${curr_parse}" == "default" ]] && [[ "${prev_parse}" == "default" ]]; then
+		rc_first=0
+	fi
 	
 	# check if exist or not
 	check_dir "${database_path}/${named}"
 	if (( "$rc" )); then
+		unset rc
 		die "$named doesn't exist, please choose another one"
 	fi
+	
 	unset rc
+	
+	# change place of previous symlinks
+	make_symlinks "-sfT" "${curr}" "${database_path}" "previous" || die "Impossible to create previous symlinks"
 	
 	# udpate current database to new database
 	s6-rc-update -v"${verbose}" "${database_path}/${named}" || die "Impossible to update the new database"
 	
-	# update the symlinks about previous database
-	make_symlinks "-sfT" "${curr}" "${database_path}" "previous" || die "Impossible to create previous symlinks"
+	# search in old db for know what services is new 
+	# then bring up only the new services
+	
+	if (( ! rc_first)); then # first pass?
+	    s6-rc -v"${verbose}" -u change all-User
+	else
+	    curr_parse="${named}"
+	    prev=$(which_db previous)
+	    prev_parse="${prev##*/}"
+
+	    compare_db "${curr_parse}" "${prev_parse}"
+	fi
+	
 	# update the symlinks to boot with the new database
 	make_symlinks "-sfT" "${database_path}/${named}" "${database_path}" "current" || die "Impossible to create current symlinks"
 	
-	unset named	curr
+	unset named rc_curr rc_first curr curr_parse prev prev_parse 
 }
 
 compile_switch(){
 	local named
+	#named="${1:-current}"
 	named="${1}"
 	
 	compile "${named}"
 	switch "${named}"
 	
-	unset named curr
+	unset named
 	
 	exit 0
 }
@@ -278,13 +350,21 @@ which_db(){
 	fi
 	
 	unset named
-	
-	exit 0
 }
 
-
+# ${1} which database, blank for live
 list(){
-	s6-rc -a listall
+	local named
+	named="${1}"
+	
+	if [[ -z "${named}" ]]; then
+	    s6-rc-db list all
+	else
+	    s6-rc-db -c "${database_path}/${named}" list all
+	fi
+	
+	unset named
+	
 	exit 0
 }
 
@@ -326,7 +406,7 @@ remove_db(){
 # ${3} searched files
 # return rc=0 success, rc=1 fail
 search_in_dir(){
-	local path_dir search named sub_dir 
+	local path_dir search named sub_dir here 
 	local -a list files
 	path_dir="${1}"
 	named="${2}"
@@ -344,7 +424,7 @@ search_in_dir(){
 		done <<< ${files[@]}
 	done <<< "${list[@]}"
 	
-	unset path_dir search named sub_dir list files
+	unset path_dir search named sub_dir list files here
 }
 
 
@@ -353,19 +433,41 @@ search_in_dir(){
 # ${3} searched on to the file
 # return rc=0 on success, rc=1 on fail
 search_in_file(){
-	local path_file named search line
+	local path_file named search line_ in_file
 	path_file="${1}"
 	named="${2}"
 	search="${3}"
 	in_file="${path_file}/${named}"
-	while read line;do
-		case $line in
+	
+	while read line_;do
+		case $line_ in
 			$search) rc=0 && break ;;
 			*) rc=1 ;;
 		esac
 	done < "${in_file}"
 	
-	unset path_file named search line in_file
+	unset path_file named search line_ in_file
+}
+
+# ${1} path to the database
+# ${2} name of the database
+# ${3} searched on to the database
+# return rc=0 on success, rc=1 on fail
+search_in_db(){
+	local path_file named search line_ in_db
+	path_file="${1:-${database_path}}"
+	named="${2:-current}"
+	search="${3}"
+	in_db="${path_file}/${named}"
+	
+	while read line_; do
+		case $line_ in
+			$search) rc=0 && break ;;
+			*) rc=1 ;;
+		esac
+	done < <(s6-rc-db -c "${in_db}" list all)
+	
+	unset path_file named search line_ in_db
 }
 
 # ${1} path to the file
@@ -374,6 +476,7 @@ parse_file(){
 	local check path_file named
 	path_file="${1}"
 	named="${2}"
+	
 	while read check; do
 		list_serv+=($check,)
 	done < "${path_file}/${named}"
@@ -397,6 +500,19 @@ make_symlinks(){
 	unset opt target where named
 }
 
+# ${1} action, must be u for up or d for down
+# ${2} name of the bundle/service to bring up/down
+bringing(){
+	local action named
+	action="${1}"
+	named="${2}"
+	
+	echo_display " Bringing ${action} ${named}"
+	s6-rc -v${verbose} -"${action}" change "${named}"
+	
+	unset action named
+}
+
 # ${1} name of the directory
 # return rc=0 on success
 check_dir(){
@@ -411,4 +527,30 @@ check_dir(){
 	unset dir
 }
 
+# ${1} current database
+# ${2} previous database
+compare_db(){
+	local curr prev check line_
+	local -a curr_db which_up
+	curr="${1}"
+	prev="${2}"
+
+	mapfile -t curr_db < <(s6-rc-db -c "${database_path}/${curr}" list all)
+
+	while read -d " " check; do
+		search_in_db "" "${prev}" "${check}"
+		if (( "$rc" )); then
+			unset rc
+			which_up+=($check,)
+		fi
+		unset rc
+	done <<< "${curr_db[@]}"
+	
+	# bring up the new service
+	while read -d "," line_; do
+		bringing "u" "$line_"
+	done <<<  "${which_up[@]}"
+	
+	unset curr prev check line_ curr_db which_up
+}
 
