@@ -1,6 +1,18 @@
 #compdef s6opts
-# completion for svopts
-# Eric Vidal <eric@obarun.org>
+# Copyright (C) 2015-2016 Eric Vidal <eric@obarun.org>
+#
+# Completion for s6opts
+#
+# This file is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+# This scripts is under License Beerware.
+#
+# "THE BEERWARE LICENSE" (Revision 42):
+# <eric@obarun.org> wrote this file.  As long as you retain this notice you
+# can do whatever you want with this stuff. If we meet some day, and you think
+# this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
 
 _s6opts(){
 
@@ -32,9 +44,6 @@ case $state in
     (args)
 		curcontext="${curcontext%:*:*}:svopts-cmd-$words[1]:"
 		case $words[1] in
-			list)
-				_message 'no more arguments' && ret=0
-				;;	
 			add)
 				local list_dir
 				list_dir=( /etc/s6-serv/available/*(-/N:t) )
@@ -47,32 +56,20 @@ case $state in
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
-			compile)
-				_message 'define a database name' && ret=0
+			compile|switch|all|remove_db|list)
+				local list_dir
+				list_dir=( /etc/s6/compiled/*(-/N:t) )
+				(( $#list_dir )) && _values database_name $list_dir && ret=0
+				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
 			which_db)
 				local list_dir
 				list_dir=(current previous)
 				(( $#list_dir )) && _values link_name $list_dir && ret=0
 				;;
-			switch)
-				local list_dir
-				list_dir=( /etc/s6/compiled/*(-/N:t) )
-				(( $#list_dir )) && _values database_name $list_dir && ret=0
-				[[ $words[CURRENT] = */* ]] && _directories && ret=0
-				;;
-			all)
-				_message 'define a database name' && ret=0
-				;;
 			verbose)
 				_message 'only 0,1,2, or 3 are valid'
 				;;
-			remove_db)
-				local list_dir
-				list_dir=( /etc/s6/compiled/*(-/N:t) )
-				(( $#list_dir )) && _values database_name $list_dir && ret=0
-				[[ $words[CURRENT] = */* ]] && _directories && ret=0
-				;;	
 			esac
 	;;
 esac
@@ -81,3 +78,4 @@ return $ret
 }
 
 _s6opts "$@"
+
