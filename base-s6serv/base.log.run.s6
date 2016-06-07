@@ -1,3 +1,12 @@
 #!/usr/local/bin/execlineb -P
 fdmove -c 2 1
+foreground { 
+	if -n { s6-test -d /var/log/base }
+	if { s6-mkdir -p /var/log/base }
+	chown -R s6log:log /var/log/base
+}
+unexport ?
+s6-setuidgid s6log
+exec -c 
+s6-log n3 t s1000000 /var/log/base
 
