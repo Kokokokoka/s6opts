@@ -113,8 +113,9 @@ EOF
 ##		main fonction
 
 add(){
-	local named
-	named="${1}"
+	local named where
+	where="${1}"
+	named="${2}"
 	
 	#check if exist or not
 	check_dir "${available_path}/${named}"
@@ -125,6 +126,30 @@ add(){
 	fi	
 	unset rc
 	
+	# check if directory where exist
+	# if not, create it with the necessary file/folder
+	check_dir "${enabled_path}/${where}"
+	if (( "$rc" )); then
+		unset rc
+		echo_display " ${where} does not exist, create it with the necessary files"
+		mkdir -p -m 0755 "${enabled_path}/${where}" || die "Impossible to create the directroy ${enabled_path}/${where}"
+		cp -r "${available_path}/all-User" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
+		make_symlinks "-sfT" "${available_path}/boot-ready" "${enabled_path}/${where}" "boot-ready" || die "Impossible to create the symlinks ${enabled_path}/${where}/boot-ready"
+	else
+	unset rc
+		if ! [[ -d "${enabled_path}/${where}/all-User" ]]; then
+			echo_info " Folder all-User does not exist, create it" 
+			cp -r "${available_path}/all-User" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
+		fi
+		
+		if ! [[ -h "${enabled_path}/${where}/boot-ready" ]]; then
+			echo_info " Symlink boot-ready does not exist, create it"
+			make_symlinks "-sfT" "${available_path}/boot-ready" "${enabled_path}/${where}" "boot-ready" || die "Impossible to create the symlinks ${enabled_path}/${where}/boot-ready"
+		fi
+	fi
+	
+	unset rc
+	
 	# bundle or classic service?
 	search_in_dir "${available_path}" "${named}" "contents"
 	
@@ -133,45 +158,48 @@ add(){
 		unset rc
 		parse_file "${available_path}/${named}" "contents"
 		while read -d "," line; do
-			make_symlinks "-sfT" "${available_path}/${line}" "${enabled_path}" "${line}"
+			make_symlinks "-sfT" "${available_path}/${line}" "${enabled_path}/${where}" "${line}"
 		done <<< "${list_serv[@]}"
 		list_serv=()
 		unset rc
-		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}" "${named}"
+		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}/${where}" "${named}"
 		
 		# be sure that the name doesn't exist on file contents
-		search_in_file "${available_path}/all-User" "contents" "${named}"
+		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
 		if (( "$rc" )); then
 			unset rc
-			echo "${named}" >> "${available_path}/all-User/contents"
+			echo "${named}" >> "${enabled_path}/${where}/all-User/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
 		fi
 		unset rc
 	else
 		unset rc
-		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}" "${named}"
+		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}/${where}" "${named}"
 		
 		# be sure that the name doesn't exist on file contents
-		search_in_file "${available_path}/all-User" "contents" "${named}"
+		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
 		if (( "$rc" )); then
 			unset rc
-			echo "${named}" >> "${available_path}/all-User/contents"
+			echo "${named}" >> "${enabled_path}/${where}/all-User/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
 		fi
 		unset rc
 	fi
-	unset named
+	
+	unset named where
+	
 	exit 0
 }
 
 remove(){
 	local named
-	named="${1}"
+	where="${1}"
+	named="${2}"
 	
 	#check if exist or not
-	check_dir "${enabled_path}/${named}"
+	check_dir "${enabled_path}/${where}" "${named}"
 	if (( "$rc" )); then # rc=1
 		unset rc
 		echo_error " ${named} doesn't exist, choose an another name"
@@ -185,40 +213,40 @@ remove(){
 	# if bundle, remove symlink for all name in contents file 
 	if (( ! "$rc" )); then # it is a bundle
 		unset rc
-		parse_file "${enabled_path}/${named}" "contents"
+		parse_file "${enabled_path}/${where}/${named}" "contents"
 		while read -d "," line; do
-			rm "${enabled_path}/${line}"
-			search_in_file "${available_path}/all-User" "contents" "${line}"
+			rm "${enabled_path}/${where}/${line}"
+			search_in_file "${enabled_path}/${where}/all-User" "contents" "${line}"
 			if (( ! "$rc" )); then
 				unset rc
-				sed -i "s:${line}::" "${available_path}/all-User/contents"
+				sed -i "s:${line}::" "${enabled_path}/${where}/all-User/contents"
 				# remove empty line
-				sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+				sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
 			fi
 		done <<< "${list_serv[@]}"
 		list_serv=()
 		unset rc
-		rm "${enabled_path}/${named}" 
+		rm "${enabled_path}/${where}/${named}" 
 		
 		# remove bundle name on file contents
-		search_in_file "${available_path}/all-User" "contents" "${named}"
+		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
 		if (( ! "$rc" )); then
 			unset rc
-			sed -i "s:${named}::" "${available_path}/all-User/contents"
+			sed -i "s:${named}::" "${enabled_path}/${where}/all-User/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
 		fi
 		unset rc
 	else
 		unset rc
-		rm "${enabled_path}/${named}"
-		# remove service name file contents
-		search_in_file "${available_path}/all-User" "contents" "${named}"
+		rm "${enabled_path}/${where}/${named}"
+		# remove service name on file contents
+		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
 		if (( ! "$rc" )); then
 			unset rc
-			sed -i "s:${named}::" "${available_path}/all-User/contents"
+			sed -i "s:${named}::" "${enabled_path}/${where}/all-User/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${available_path}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
 		fi
 		unset rc
 	fi
@@ -232,6 +260,7 @@ compile(){
 	local named rc_curr curr curr_parse
 	#named="${1:-current}"
 	named="${1}"
+	with_="${2}"
 	rc_curr=1
 	curr=$(which_db current)
 	curr_parse=${curr##*/}
@@ -268,7 +297,7 @@ compile(){
 	unset rc
 	
 	# compile new database
-	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}" || die "Impossible to compile the new database"
+	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}/${with_}" || die "Impossible to compile the new database"
 	
 	unset named rc_curr curr curr_parse
 }
@@ -328,8 +357,9 @@ compile_switch(){
 	local named
 	#named="${1:-current}"
 	named="${1}"
+	who_="${2}"
 	
-	compile "${named}"
+	compile  "${named}" "${who_}" 
 	switch "${named}"
 	
 	unset named
@@ -353,7 +383,7 @@ which_db(){
 }
 
 # ${1} which database, blank for live
-list(){
+list_db(){
 	local named
 	named="${1}"
 	
@@ -366,6 +396,16 @@ list(){
 	unset named
 	
 	exit 0
+}
+
+# ${1} working database directory
+list(){
+	local named
+	named="${1}"
+	
+	ls -1 --color --group-directories-first "${enabled_path}/${named}"
+		
+	unset named
 }
 
 verbose(){

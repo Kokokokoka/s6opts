@@ -19,7 +19,7 @@
 
 (( EUID == 0 )) || die " You must be run this script with root privileges"
 
-if [[ -z "${2}" ]] && [[ "${1}" != @(list|which_db) ]]; then
+if [[ -z "${2}" ]] && [[ "${1}" != @(list_db|which_db) ]]; then
 	usage
 	exit 1
 fi
@@ -37,28 +37,30 @@ exit 1
 fi
 
 opts="${2}"
-
-### very ugly below
+where_which="${3}"
 
 case "${1}" in
 	add)
-	    add "${opts}"
+	    add  "${opts}" "${where_which}"
 	    ;;
 	remove)
-	    remove "${opts}"
+	    remove "${opts}" "${where_which}"
 	    ;;
 	compile)
-	    compile "${opts}"
+	    compile "${opts}" "${where_which}"
 	    ;;
 	switch)
 	    switch "${opts}"
 	    ;;
 	all)
-	    compile_switch "${opts}"
+	    compile_switch "${opts}" "${where_which}"
+	    ;;
+	list_db)
+	    list_db "${opts}"
 	    ;;
 	list)
-	    list "${opts}"
-	    ;;
+		list "${opts}"
+		;;
 	verbose)
 	    verbose "${opts}"
 	    ;;
