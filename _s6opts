@@ -35,7 +35,7 @@ _list_add(){
 }
 _list_remove(){
 	local list_dir
-	list_dir=( /etc/s6-serv/enabled/*/*(-/N:t) )
+	list_dir=( /etc/s6-serv/enabled/$words/*(-/N:t) )
 	(( $#list_dir )) && _values services $list_dir && ret=0
 	[[ $words[CURRENT] = */* ]] && _directories && ret=0
 }
