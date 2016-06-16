@@ -133,18 +133,12 @@ add(){
 		unset rc
 		echo_display " ${where} does not exist, create it with the necessary files"
 		mkdir -p -m 0755 "${enabled_path}/${where}" || die "Impossible to create the directroy ${enabled_path}/${where}"
-		cp -r "${available_path}/all-User" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
-		make_symlinks "-sfT" "${available_path}/boot-ready" "${enabled_path}/${where}" "boot-ready" || die "Impossible to create the symlinks ${enabled_path}/${where}/boot-ready"
+		cp -r "${enabled_path}/default/All" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
 	else
 	unset rc
-		if ! [[ -d "${enabled_path}/${where}/all-User" ]]; then
-			echo_info " Folder all-User does not exist, create it" 
-			cp -r "${available_path}/all-User" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
-		fi
-		
-		if ! [[ -h "${enabled_path}/${where}/boot-ready" ]]; then
-			echo_info " Symlink boot-ready does not exist, create it"
-			make_symlinks "-sfT" "${available_path}/boot-ready" "${enabled_path}/${where}" "boot-ready" || die "Impossible to create the symlinks ${enabled_path}/${where}/boot-ready"
+		if ! [[ -d "${enabled_path}/${where}/All" ]]; then
+			echo_info " Folder All does not exist, create it" 
+			cp -r "${enabled_path}/default/All" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
 		fi
 	fi
 	
@@ -165,12 +159,12 @@ add(){
 		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}/${where}" "${named}"
 		
 		# be sure that the name doesn't exist on file contents
-		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
+		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
 		if (( "$rc" )); then
 			unset rc
-			echo "${named}" >> "${enabled_path}/${where}/all-User/contents"
+			echo "${named}" >> "${enabled_path}/${where}/All/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
 		unset rc
 	else
@@ -178,12 +172,12 @@ add(){
 		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}/${where}" "${named}"
 		
 		# be sure that the name doesn't exist on file contents
-		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
+		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
 		if (( "$rc" )); then
 			unset rc
-			echo "${named}" >> "${enabled_path}/${where}/all-User/contents"
+			echo "${named}" >> "${enabled_path}/${where}/All/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
 		unset rc
 	fi
@@ -216,12 +210,12 @@ remove(){
 		parse_file "${enabled_path}/${where}/${named}" "contents"
 		while read -d "," line; do
 			rm "${enabled_path}/${where}/${line}"
-			search_in_file "${enabled_path}/${where}/all-User" "contents" "${line}"
+			search_in_file "${enabled_path}/${where}/All" "contents" "${line}"
 			if (( ! "$rc" )); then
 				unset rc
-				sed -i "s:${line}::" "${enabled_path}/${where}/all-User/contents"
+				sed -i "s:${line}::" "${enabled_path}/${where}/All/contents"
 				# remove empty line
-				sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
+				sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 			fi
 		done <<< "${list_serv[@]}"
 		list_serv=()
@@ -229,24 +223,24 @@ remove(){
 		rm "${enabled_path}/${where}/${named}" 
 		
 		# remove bundle name on file contents
-		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
+		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
 		if (( ! "$rc" )); then
 			unset rc
-			sed -i "s:${named}::" "${enabled_path}/${where}/all-User/contents"
+			sed -i "s:${named}::" "${enabled_path}/${where}/All/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
 		unset rc
 	else
 		unset rc
 		rm "${enabled_path}/${where}/${named}"
 		# remove service name on file contents
-		search_in_file "${enabled_path}/${where}/all-User" "contents" "${named}"
+		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
 		if (( ! "$rc" )); then
 			unset rc
-			sed -i "s:${named}::" "${enabled_path}/${where}/all-User/contents"
+			sed -i "s:${named}::" "${enabled_path}/${where}/All/contents"
 			# remove empty line
-			sed -i "/^\s*$/d" "${enabled_path}/${where}/all-User/contents"
+			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
 		unset rc
 	fi
@@ -278,11 +272,11 @@ compile(){
 		named=${named##*/}
 		if (( "$rc_curr" )); then # .old do not exist
 		    cp -rf "${database_path}/${named}" "${database_path}/${named}.old" || die "Impossible to cp ${named} to ${named}.old"
-		    s6-rc-update -v"${verbose}" "${database_path}/${named}.old" || die "Impossible to update the new database"
+		    s6-rc-update -l "${live_path}" -v"${verbose}" "${database_path}/${named}.old" || die "Impossible to update the new database"
 		    rm -r "${database_path}/${named}" || die "Impossible to remove ${named}"
 		    make_symlinks "-sfT" "${database_path}/${named}.old" "${database_path}" "current" || die "Impossible to create current symlinks"
 		else # .old exist
-		    s6-rc-update -v"${verbose}" "${database_path}/${named}.old" || die "Impossible to update the new database"
+		    s6-rc-update -l "${live_path}" -v"${verbose}" "${database_path}/${named}.old" || die "Impossible to update the new database"
 		    rm -r "${database_path}/${named}" || die "Impossible to remove ${named}"
 		    make_symlinks "-sfT" "${database_path}/${named}.old" "${database_path}" "current" || die "Impossible to create current symlinks"
 		fi
@@ -297,7 +291,7 @@ compile(){
 	unset rc
 	
 	# compile new database
-	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "/etc/s6/rc-serv-boot" "${enabled_path}/${with_}" || die "Impossible to compile the new database"
+	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "${enabled_path}/${with_}" || die "Impossible to compile the new database"
 	
 	unset named rc_curr curr curr_parse
 }
@@ -332,13 +326,13 @@ switch(){
 	make_symlinks "-sfT" "${curr}" "${database_path}" "previous" || die "Impossible to create previous symlinks"
 	
 	# udpate current database to new database
-	s6-rc-update -v"${verbose}" "${database_path}/${named}" || die "Impossible to update the new database"
+	s6-rc-update -l "${live_path}" -v"${verbose}" "${database_path}/${named}" || die "Impossible to update the new database"
 	
 	# search in old db for know what services is new 
 	# then bring up only the new services
 	
 	if (( ! rc_first)); then # first pass?
-	    s6-rc -v"${verbose}" -u change all-User
+	    s6-rc -l "${live_path}" -v"${verbose}" -u change all-User
 	else
 	    curr_parse="${named}"
 	    prev=$(which_db previous)
@@ -376,7 +370,7 @@ which_db(){
 		stat -c%N "${database_path}/current"
 		stat -c%N "${database_path}/previous"
 	else	
-		readlink -v "${database_path}/${1}"
+		readlink -v "${database_path}/${named}"
 	fi
 	
 	unset named
@@ -438,7 +432,65 @@ remove_db(){
 	
 	exit 0
 }
+enable(){
+	local named
+	named="${1}"
 	
+	if [[ -h "${classic_enabled}/${named}" ]]; then
+		echo_info " Already enabled, nothing to do"
+		exit 0
+	fi
+	
+	check_dir "${classic_available}/${named}"
+	if (( ! "$rc" )); then
+		unset rc
+		if [[ -d "${classic_path}/${named}" ]]; then
+			die "${named} already exist at ${classic_path}"
+		else
+			cp -r "${classic_available}/${named}" "${classic_path}/${named}" || die "Impossible to copy ${named} to ${classic_path}"
+		fi
+	else
+		die "${named} does not exist, choose another one"
+	fi
+	
+	unset rc
+	
+	echo_display " Enable ${named}"
+	make_symlinks "-s" "${classic_path}/${named}" "${classic_enabled}" "${named}"
+	
+	echo_display " Bringing up ${named}"
+	s6-svscanctl -an "${classic_enabled}"
+	
+	exit 0
+}
+
+disable(){
+	local named
+	named="${1}"
+	link_=$(readlink "${classic_enabled}/${named}")
+	
+	if [[ "${link_}" != "${classic_path}/${named}" ]]; then
+		die " Not a classic service, choose another one"
+	fi
+	if [[ ! -h "${classic_enabled}/${named}" ]]; then
+		echo_info " Not enabled, nothing to do"
+		exit 0
+	fi
+	
+	check_dir "${classic_path}/${named}"
+	if (( ! "$rc" )); then
+		rm -r "${classic_path}/${named}" || die " Impossible to remove ${named}"
+	fi
+	
+	echo_display " Disable ${named}"
+	rm "${classic_enabled}/${named}"
+	
+	echo_display " Bringing down ${named}"
+	s6-svscanctl -an "${classic_enabled}"
+	
+	exit 0
+	
+}
 ##		sub functions
 
 # ${1} path directories
@@ -548,7 +600,7 @@ bringing(){
 	named="${2}"
 	
 	echo_display " Bringing ${action} ${named}"
-	s6-rc -v${verbose} -"${action}" change "${named}"
+	s6-rc -l "${live_path}" -v${verbose} -"${action}" change "${named}"
 	
 	unset action named
 }

@@ -19,38 +19,34 @@ _s6opts(){
 typeset -A opt_args
 local ret=1 context state line curcontext="$curcontext"
 
-path_dir=/etc/s6-serv/enabled/
+. /etc/s6opts/s6opts.conf
 
 _path() {
 	local list_dir
-	list_dir=( $path_dir/*(-/N:t) )
+	list_dir=( $enabled_path/*(-/N:t) )
 	compadd -X "choose an existing database or create a new one" "$@" -a list_dir 
 }
-
-_list_add(){
+_list_available() {
 	local list_dir
-	list_dir=( /etc/s6-serv/available/*(-/N:t) )
+	list_dir=( $available_path/*(-/N:t) )
 	(( $#list_dir )) && _values services $list_dir && ret=0
-	[[ $words[CURRENT] = */* ]] && _directories && ret=0
 }
+
 _list_remove(){
 	local list_dir
-	list_dir=( /etc/s6-serv/enabled/$words/*(-/N:t) )
+	list_dir=( $enabled_path/$words/*(-/N:t) )
 	(( $#list_dir )) && _values services $list_dir && ret=0
-	[[ $words[CURRENT] = */* ]] && _directories && ret=0
 }
 
 _list_database(){
 	local list_dir
-	list_dir=( /etc/s6/compiled/*(-/N:t) )
+	list_dir=( $database_path/*(-/N:t) )
 	(( $#list_dir )) && _values database_name $list_dir && ret=0
-	[[ $words[CURRENT] = */* ]] && _directories && ret=0
 }
 _list_database_to_compile(){
 	local list_dir
-	list_dir=( /etc/s6-serv/enabled/*(-/N:t) )
+	list_dir=( $enabled_path/*(-/N:t) )
 	(( $#list_dir )) && _values database_name $list_dir && ret=0
-	[[ $words[CURRENT] = */* ]] && _directories && ret=0
 }
 
 _arguments -C \
@@ -72,6 +68,8 @@ case $state in
 			'verbose:be more or less verbose (permanent change)'
 			'remove_db:remove a service database'
 			'which_db:current/previous service database used'
+			'enable:enable a classic service at boot time'
+			'disable:disable a classic service from boot time'
              ) 
          _describe -t commands 's6opts command' commands && ret=0    
         ret=0
@@ -82,12 +80,12 @@ case $state in
 			add)
 				_arguments : \
 					':database_name:_path' \
-					':services:_list_add'
+					':services:_list_available'
 				;;
 			remove)
 				_arguments : \
-					':database_name:_path' \
-					':services:_list_remove' 
+					'1:database_name:_path' \
+					'2:services:_list_remove' 
 				;;
 			compile|all)
 				_arguments : \
@@ -96,13 +94,12 @@ case $state in
 				;;
 			switch|remove_db|list_db)
 				local list_dir
-				list_dir=( /etc/s6/compiled/*(-/N:t) )
+				list_dir=( $database_path/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
-				[[ $words[CURRENT] = */* ]] && _directories && ret=0
 				;;
 			list)
 				local list_dir
-				list_dir=( /etc/s6-serv/enabled/*(-/N:t) )
+				list_dir=( $enabled_path/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				;;
 			which_db)
@@ -112,6 +109,16 @@ case $state in
 				;;
 			verbose)
 				_message 'only 0,1,2, or 3 are valid'
+				;;
+			enable)
+				local list_dir
+				list_dir=( $classic_available/*(-/N:t) )
+				(( $#list_dir )) && _values services $list_dir && ret=0
+				;;
+			disable)
+				local list_dir
+				list_dir=( $classic_enabled/*(-/N:t) )
+				(( $#list_dir )) && _values services $list_dir && ret=0
 				;;
 			esac
 			

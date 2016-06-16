@@ -70,6 +70,12 @@ case "${1}" in
 	which_db)
 	    which_db "${opts}"
 	    ;;
+	enable)
+		enable "${opts}"
+		;;
+	disable)
+		disable "${opts}"
+		;;
 	*)
 	    usage
 	    exit 1
