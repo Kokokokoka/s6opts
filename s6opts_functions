@@ -599,21 +599,6 @@ make_symlinks(){
 
 	unset opt target where named
 }
-# {1} option to pass
-# {2} file to copy
-# {3} where to copy
-# {4} name of the target
-copy_file(){
-	local opt src where named
-	opt="${1}"
-	src="${2}"
-	where="{3}"
-	named="{4}"
-	
-	cp "${opt}" "${src}" "${where}/" "${named}"
-	
-	unset opt src where named
-}
 
 # ${1} action, must be u for up or d for down
 # ${2} name of the bundle/service to bring up/down
