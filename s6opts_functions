@@ -35,34 +35,42 @@ bblue=${bold}$(tput setaf 4)
 echo_bold(){
 	local msg=$1; shift 
 	printf "${bold}${msg}${reset}\n" "${@}" >&1
+	unset msg
 }
 echo_info(){
 	local msg=$1; shift 
 	printf "${byellow}==>>${msg} ${reset}\n" "${@}" >&1
+	unset msg
 }
 echo_info_menu(){
 	local msg=$1; shift 
 	printf "${byellow}${msg} ${reset}\n" "${@}" >&1
+	unset msg
 }
 echo_retry(){
 	local msg=$1; shift 
 	printf "${bblue}==>>${msg} ${reset}\n" "${@}" >&1
+	unset msg
 }
 echo_valid(){
 	local msg=$1; shift 
 	printf "${bgreen}    ->${msg} ${reset}\n" "${@}" >&1
+	unset msg
 }
 echo_notvalid(){
 	local msg=$1; shift 
 	printf "${byellow}    ->${msg} ${reset}\n" "${@}" >&1
+	unset msg
 }
 echo_display(){
 	local msg=$1; shift 
 	printf "${bold}==>>${msg} ${reset}\n" "${@}" >&1
+	unset msg
 }
 echo_error(){
 	local msg=$1; shift 
 	printf "${bred}    ->${msg} ${reset}\n" "${@}" >&2
+	unset msg
 }
 answer(){
 	echo_retry " Please answer y or n :"
@@ -152,12 +160,12 @@ add(){
 		unset rc
 		parse_file "${available_path}/${named}" "contents"
 		while read -d "," line; do
-			make_symlinks "-sfT" "${available_path}/${line}" "${enabled_path}/${where}" "${line}"
+			cp -rau "${available_path}/${line}" "${enabled_path}/${where}"
 		done <<< "${list_serv[@]}"
 		list_serv=()
 		unset rc
-		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}/${where}" "${named}"
-		
+		cp -rau "${available_path}/${named}" "${enabled_path}/${where}" 
+				
 		# be sure that the name doesn't exist on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
 		if (( "$rc" )); then
@@ -169,7 +177,7 @@ add(){
 		unset rc
 	else
 		unset rc
-		make_symlinks "-sfT" "${available_path}/${named}" "${enabled_path}/${where}" "${named}"
+		cp -rau "${available_path}/${named}" "${enabled_path}/${where}"
 		
 		# be sure that the name doesn't exist on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
@@ -209,7 +217,7 @@ remove(){
 		unset rc
 		parse_file "${enabled_path}/${where}/${named}" "contents"
 		while read -d "," line; do
-			rm "${enabled_path}/${where}/${line}"
+			rm -r "${enabled_path}/${where}/${line}"
 			search_in_file "${enabled_path}/${where}/All" "contents" "${line}"
 			if (( ! "$rc" )); then
 				unset rc
@@ -220,7 +228,7 @@ remove(){
 		done <<< "${list_serv[@]}"
 		list_serv=()
 		unset rc
-		rm "${enabled_path}/${where}/${named}" 
+		rm -r "${enabled_path}/${where}/${named}" 
 		
 		# remove bundle name on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
@@ -233,7 +241,7 @@ remove(){
 		unset rc
 	else
 		unset rc
-		rm "${enabled_path}/${where}/${named}"
+		rm -r "${enabled_path}/${where}/${named}"
 		# remove service name on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
 		if (( ! "$rc" )); then
@@ -590,6 +598,21 @@ make_symlinks(){
 	ln "${opt}" "${target}" "${where}/${named}"
 
 	unset opt target where named
+}
+# {1} option to pass
+# {2} file to copy
+# {3} where to copy
+# {4} name of the target
+copy_file(){
+	local opt src where named
+	opt="${1}"
+	src="${2}"
+	where="{3}"
+	named="{4}"
+	
+	cp "${opt}" "${src}" "${where}/" "${named}"
+	
+	unset opt src where named
 }
 
 # ${1} action, must be u for up or d for down
