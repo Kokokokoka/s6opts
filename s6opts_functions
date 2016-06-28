@@ -118,8 +118,28 @@ General options:
 EOF
 	exit 0
 }
+
+##		Reply functions
+## return rc=0 for yes
+## return rc=1 for no
+reply_answer(){
+	local reply
+	read reply
+	while [[ ! "$reply" = @(y|n) ]]; do
+		answer
+		read reply
+	done
+	if [ "$reply" == "y" ]; then
+		rc=0
+	else
+		rc=1
+	fi	
+}
+
 ##		main fonction
 
+# ${1} name of the service to add
+# ${2} name of the source where add the service
 add(){
 	local named where
 	where="${1}"
@@ -195,6 +215,8 @@ add(){
 	exit 0
 }
 
+# ${1} name of the service to remove
+# ${2} name of the source where remove the service
 remove(){
 	local named
 	where="${1}"
@@ -258,6 +280,8 @@ remove(){
 	exit 0
 }
 
+# ${1} name of the future compiled database
+# ${2} name of the source to compile the database
 compile(){
 	local named rc_curr curr curr_parse
 	#named="${1:-current}"
@@ -304,6 +328,7 @@ compile(){
 	unset named rc_curr curr curr_parse
 }
 
+# ${1} name of the database to switch
 switch(){
 	local named rc_curr rc_first curr curr_parse prev prev_parse
 	local -a which_up prev_db
@@ -355,6 +380,8 @@ switch(){
 	unset named rc_curr rc_first curr curr_parse prev prev_parse 
 }
 
+# ${1} name of the future compiled database
+# ${2} name of the source to compile the database
 compile_switch(){
 	local named
 	#named="${1:-current}"
@@ -369,7 +396,7 @@ compile_switch(){
 	exit 0
 }
 
-# ${1} name of symlinks
+# ${1} name of symlinks, blank for both
 which_db(){
 	local named
 	named="${1}"
@@ -440,20 +467,25 @@ remove_db(){
 	
 	exit 0
 }
+
+# ${1} name of the service
 enable(){
 	local named
 	named="${1}"
-	
-	if [[ -h "${classic_enabled}/${named}" ]]; then
-		echo_info " Already enabled, nothing to do"
-		exit 0
-	fi
 	
 	check_dir "${classic_available}/${named}"
 	if (( ! "$rc" )); then
 		unset rc
 		if [[ -d "${classic_path}/${named}" ]]; then
-			die "${named} already exist at ${classic_path}"
+			echo_info "${named} already exist at ${classic_path}, do you want to synchronize it [y|n]"
+			reply_answer
+			if (( ! "$rc" )); then
+				unset rc
+				cp -ra "${classic_available}/${named}" "${classic_path}/" || die "Impossible to copy ${named} to ${classic_path}"
+			else
+				unset rc
+				echo_valid " Keeping the old version"
+			fi
 		else
 			cp -r "${classic_available}/${named}" "${classic_path}/${named}" || die "Impossible to copy ${named} to ${classic_path}"
 		fi
@@ -463,15 +495,25 @@ enable(){
 	
 	unset rc
 	
-	echo_display " Enable ${named}"
-	make_symlinks "-s" "${classic_path}/${named}" "${classic_enabled}" "${named}"
-	
-	echo_display " Bringing up ${named}"
-	s6-svscanctl -an "${classic_enabled}"
+	if [[ -h "${classic_enabled}/${named}" ]]; then
+		echo_info " Already enabled, do you want to send a ALARM signal to ${named} [y|n]"
+		reply_answer
+		if (( ! "$rc" )); then
+			unset rc
+			s6-svc -a "${classic_enabled}/""${named}"
+		fi
+	else
+		echo_display " Enable ${named}"
+		make_symlinks "-s" "${classic_path}/${named}" "${classic_enabled}" "${named}"
+		
+		echo_display " Bringing up ${named}"
+		s6-svscanctl -an "${classic_enabled}"
+	fi
 	
 	exit 0
 }
 
+# ${1} name of the service
 disable(){
 	local named
 	named="${1}"
@@ -484,16 +526,21 @@ disable(){
 		echo_info " Not enabled, nothing to do"
 		exit 0
 	fi
+
+	echo_display " Bringing down ${named}"
+	s6-svc -d "${classic_enabled}/""${named}"
 	
 	check_dir "${classic_path}/${named}"
 	if (( ! "$rc" )); then
 		rm -r "${classic_path}/${named}" || die " Impossible to remove ${named}"
 	fi
 	
+	
+	
 	echo_display " Disable ${named}"
 	rm "${classic_enabled}/${named}"
 	
-	echo_display " Bringing down ${named}"
+	echo_display " Synchronize ${classic_enabled} directory"
 	s6-svscanctl -an "${classic_enabled}"
 	
 	exit 0
