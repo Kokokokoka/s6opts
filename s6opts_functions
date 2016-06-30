@@ -532,7 +532,7 @@ disable(){
 	
 	check_dir "${classic_path}/${named}"
 	if (( ! "$rc" )); then
-		rm -r "${classic_path}/${named}" || die " Impossible to remove ${named}"
+		rm -rf "${classic_path}/${named}" || die " Impossible to remove ${named}"
 	fi
 	
 	
