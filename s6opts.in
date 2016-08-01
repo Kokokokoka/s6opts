@@ -14,8 +14,19 @@
 
 #set -e
 
-. /etc/s6opts/s6opts.conf
-. /etc/s6opts/s6opts_functions
+if [[ -f /usr/lib/obarun/common_functions ]]; then
+	source /usr/lib/obarun/common_functions
+else
+	echo "==>> Missing file : common_functions"
+	exit	
+fi
+
+if [[ -f /usr/lib/obarun/s6opts_functions ]]; then
+	source /usr/lib/obarun/s6opts_functions
+else
+	echo "==>> Missing file : s6opts_functions"
+	exit	
+fi
 
 (( EUID == 0 )) || die " You must be run this script with root privileges"
 
@@ -83,4 +94,3 @@ case "${1}" in
 esac
 exit 0
 
-# vim:set ts=2 sw=2 et:

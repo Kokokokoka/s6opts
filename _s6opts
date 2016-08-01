@@ -19,7 +19,7 @@ _s6opts(){
 typeset -A opt_args
 local ret=1 context state line curcontext="$curcontext"
 
-. /etc/s6opts/s6opts.conf
+source /etc/obarun/s6opts.conf
 
 _path() {
 	local list_dir
