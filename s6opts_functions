@@ -31,13 +31,16 @@ ${bold}Usage: ${0} [options] [service_name|database_name]${reset}
 
 General options:
 	add : add a service on service database
-	remove : remove a service on service database
-	compile : compile the service database
-	switch : switch the current service database and bring up all new service
 	all : compile and switch the current database
-	list : list of services on current database
-	verbose : be more or less verbose (permanent change)
+	compile : compile the service database
+	disable : disable a classic service from boot time
+	enable : enable a classic service at boot time
+	list : list service enabled on database for compilation
+	list_db : list of services on current database
+	remove : remove a service on service database
 	remove_db : remove a service database
+	switch : switch the current service database and bring up all new service
+	verbose : be more or less verbose (permanent change)
 	which_db : current/previous service database used
 EOF
 	exit 0
