@@ -327,7 +327,7 @@ list_db(){
 	named="${1}"
 	
 	if [[ -z "${named}" ]]; then
-	    s6-rc-db list all
+	    s6-rc-db -l "${live_path}" list all
 	else
 	    s6-rc-db -c "${database_path}/${named}" list all
 	fi
