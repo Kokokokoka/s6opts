@@ -20,7 +20,7 @@ source /etc/obarun/s6opts.conf
 ##		define some variables
 
 list_serv=()
-rc=""
+
 
 ## 		common functions
 
@@ -57,67 +57,55 @@ add(){
 	
 	#check if exist or not
 	check_dir "${available_path}/${named}"
-	if (( "$rc" )); then # rc=1
+	if (( $? )); then # rc=1
 		echo_error " ${named} doesn't exist, choose an another name"
-		unset rc
 		exit 1
 	fi	
-	unset rc
-	
+		
 	# check if directory where exist
 	# if not, create it with the necessary file/folder
 	check_dir "${enabled_path}/${where}"
-	if (( "$rc" )); then
-		unset rc
+	if (( $? )); then
 		echo_display " ${where} does not exist, create it with the necessary files"
 		mkdir -p -m 0755 "${enabled_path}/${where}" || die "Impossible to create the directroy ${enabled_path}/${where}"
 		cp -r "${enabled_path}/default/All" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
 	else
-	unset rc
 		if ! [[ -d "${enabled_path}/${where}/All" ]]; then
 			echo_info " Folder All does not exist, create it" 
 			cp -r "${enabled_path}/default/All" "${enabled_path}/${where}" || die "Impossible to copy from ${available_path}/all-User to ${enabled_path}/${where}"
 		fi
 	fi
 	
-	unset rc
 	
 	# bundle or classic service?
 	search_in_dir "${available_path}" "${named}" "contents"
 	
 	# if bundle, create symlink for all name in contents file 
-	if (( ! "$rc" )); then # it is a bundle
-		unset rc
+	if (( ! $? )); then # it is a bundle
 		parse_file "${available_path}/${named}" "contents"
 		while read -d "," line; do
 			cp -rau "${available_path}/${line}" "${enabled_path}/${where}"
 		done <<< "${list_serv[@]}"
 		list_serv=()
-		unset rc
 		cp -rau "${available_path}/${named}" "${enabled_path}/${where}" 
 				
 		# be sure that the name doesn't exist on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
-		if (( "$rc" )); then
-			unset rc
+		if (( $? )); then
 			echo "${named}" >> "${enabled_path}/${where}/All/contents"
 			# remove empty line
 			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
-		unset rc
 	else
-		unset rc
 		cp -rau "${available_path}/${named}" "${enabled_path}/${where}"
 		
 		# be sure that the name doesn't exist on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
-		if (( "$rc" )); then
-			unset rc
+		if (( $? )); then
 			echo "${named}" >> "${enabled_path}/${where}/All/contents"
 			# remove empty line
 			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
-		unset rc
 	fi
 	
 	unset named where
@@ -134,55 +122,45 @@ remove(){
 	
 	#check if exist or not
 	check_dir "${enabled_path}/${where}" "${named}"
-	if (( "$rc" )); then # rc=1
-		unset rc
+	if (( $? )); then # rc=1
 		echo_error " ${named} doesn't exist, choose an another name"
 		exit 1
 	fi
-	unset rc
 	
 	# bundle or classic service?
 	search_in_dir "${available_path}" "${named}" "contents"
 	
 	# if bundle, remove symlink for all name in contents file 
-	if (( ! "$rc" )); then # it is a bundle
-		unset rc
+	if (( ! $? )); then # it is a bundle
 		parse_file "${enabled_path}/${where}/${named}" "contents"
 		while read -d "," line; do
 			rm -r "${enabled_path}/${where}/${line}"
 			search_in_file "${enabled_path}/${where}/All" "contents" "${line}"
-			if (( ! "$rc" )); then
-				unset rc
+			if (( ! $? )); then
 				sed -i "s:${line}::" "${enabled_path}/${where}/All/contents"
 				# remove empty line
 				sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 			fi
 		done <<< "${list_serv[@]}"
 		list_serv=()
-		unset rc
 		rm -r "${enabled_path}/${where}/${named}" 
 		
 		# remove bundle name on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
-		if (( ! "$rc" )); then
-			unset rc
+		if (( ! $? )); then
 			sed -i "s:${named}::" "${enabled_path}/${where}/All/contents"
 			# remove empty line
 			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
-		unset rc
 	else
-		unset rc
 		rm -r "${enabled_path}/${where}/${named}"
 		# remove service name on file contents
 		search_in_file "${enabled_path}/${where}/All" "contents" "${named}"
-		if (( ! "$rc" )); then
-			unset rc
+		if (( ! $? )); then
 			sed -i "s:${named}::" "${enabled_path}/${where}/All/contents"
 			# remove empty line
 			sed -i "/^\s*$/d" "${enabled_path}/${where}/All/contents"
 		fi
-		unset rc
 	fi
 	
 	unset named
@@ -202,13 +180,10 @@ compile(){
 	curr_parse=${curr##*/}
 	
 	check_dir "${database_path}/${named}.old"
-	if (( ! "$rc" )); then
+	if (( ! $? )); then
 		rc_curr=0
-		unset rc
 	fi
-	
-	unset rc
-	
+		
 	if [[ "${named}" == "current" ]] || [[ "${named}" == "${curr_parse}" ]]; then
 		named=${curr}
 		named=${named##*/}
@@ -226,11 +201,9 @@ compile(){
 
 	# check exist or not
 	check_dir "${database_path}/${named}"
-	if (( ! "$rc" )); then
+	if (( ! $? )); then
 		rm -r "${database_path}/${named}" || die "Impossible to remove ${named}"
 	fi
-	
-	unset rc
 	
 	# compile new database
 	s6-rc-compile -v"${verbose}" "${database_path}/${named}" "${enabled_path}/${with_}" || die "Impossible to compile the new database"
@@ -258,13 +231,10 @@ switch(){
 	
 	# check if exist or not
 	check_dir "${database_path}/${named}"
-	if (( "$rc" )); then
-		unset rc
+	if (( $? )); then
 		die "$named doesn't exist, please choose another one"
 	fi
-	
-	unset rc
-	
+		
 	# change place of previous symlinks
 	make_symlinks "-sfT" "${curr}" "${database_path}" "previous" || die "Impossible to create previous symlinks"
 	
@@ -384,16 +354,13 @@ enable(){
 	named="${1}"
 	
 	check_dir "${classic_available}/${named}"
-	if (( ! "$rc" )); then
-		unset rc
+	if (( ! $? )); then
 		if [[ -d "${classic_path}/${named}" ]]; then
 			echo_info "${named} already exist at ${classic_path}, do you want to synchronize it [y|n]"
 			reply_answer
-			if (( ! "$rc" )); then
-				unset rc
+			if (( ! $? )); then
 				cp -ra "${classic_available}/${named}" "${classic_path}/" || die "Impossible to copy ${named} to ${classic_path}"
 			else
-				unset rc
 				echo_valid " Keeping the old version"
 			fi
 		else
@@ -402,14 +369,11 @@ enable(){
 	else
 		die "${named} does not exist, choose another one"
 	fi
-	
-	unset rc
-	
+		
 	if [[ -h "${classic_enabled}/${named}" ]]; then
 		echo_info " Already enabled, do you want to send a ALARM signal to ${named} [y|n]"
 		reply_answer
-		if (( ! "$rc" )); then
-			unset rc
+		if (( ! $? )); then
 			s6-svc -a "${classic_enabled}/""${named}"
 		fi
 	else
@@ -441,7 +405,7 @@ disable(){
 	s6-svc -d "${classic_enabled}/""${named}"
 	
 	check_dir "${classic_path}/${named}"
-	if (( ! "$rc" )); then
+	if (( ! $? )); then
 		rm -rf "${classic_path}/${named}" || die " Impossible to remove ${named}"
 	fi
 	
@@ -461,7 +425,7 @@ disable(){
 # ${1} path to the database
 # ${2} name of the database
 # ${3} searched on to the database
-# return rc=0 on success, rc=1 on fail
+# return 0 on success, 1 on fail
 search_in_db(){
 	local path_file named search line_ in_db
 	path_file="${1:-${database_path}}"
@@ -471,8 +435,8 @@ search_in_db(){
 	
 	while read line_; do
 		case $line_ in
-			$search) rc=0 && break ;;
-			*) rc=1 ;;
+			$search) return 0 && break ;;
+			*) return 1 ;;
 		esac
 	done < <(s6-rc-db -c "${in_db}" list all)
 	
@@ -518,11 +482,9 @@ compare_db(){
 
 	while read -d " " check; do
 		search_in_db "" "${prev}" "${check}"
-		if (( "$rc" )); then
-			unset rc
+		if (( $? )); then
 			which_up+=($check,)
 		fi
-		unset rc
 	done <<< "${curr_db[@]}"
 	
 	# bring up the new service
