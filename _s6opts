@@ -23,29 +23,29 @@ source /etc/obarun/s6opts.conf
 
 _path() {
 	local list_dir
-	list_dir=( $enabled_path/*(-/N:t) )
+	list_dir=( $ENABLED_PATH/*(-/N:t) )
 	compadd -X "choose an existing database or create a new one" "$@" -a list_dir 
 }
 _list_available() {
 	local list_dir
-	list_dir=( $available_path/*(-/N:t) )
+	list_dir=( $AVAILABLE_PATH/*(-/N:t) )
 	(( $#list_dir )) && _values services $list_dir && ret=0
 }
 
 _list_remove(){
 	local list_dir
-	list_dir=( $enabled_path/$words/*(-/N:t) )
+	list_dir=( $ENABLED_PATH/$words/*(-/N:t) )
 	(( $#list_dir )) && _values services $list_dir && ret=0
 }
 
 _list_database(){
 	local list_dir
-	list_dir=( $database_path/*(-/N:t) )
+	list_dir=( $DATABASE_PATH/*(-/N:t) )
 	(( $#list_dir )) && _values database_name $list_dir && ret=0
 }
 _list_database_to_compile(){
 	local list_dir
-	list_dir=( $enabled_path/*(-/N:t) )
+	list_dir=( $ENABLED_PATH/*(-/N:t) )
 	(( $#list_dir )) && _values database_name $list_dir && ret=0
 }
 
@@ -94,12 +94,12 @@ case $state in
 				;;
 			switch|remove_db|list_db)
 				local list_dir
-				list_dir=( $database_path/*(-/N:t) )
+				list_dir=( $DATABASE_PATH/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				;;
 			list)
 				local list_dir
-				list_dir=( $enabled_path/*(-/N:t) )
+				list_dir=( $ENABLED_PATH/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				;;
 			which_db)
@@ -112,12 +112,12 @@ case $state in
 				;;
 			enable)
 				local list_dir
-				list_dir=( $classic_available/*(-/N:t) )
+				list_dir=( $CLASSIC_AVAILABLE/*(-/N:t) )
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				;;
 			disable)
 				local list_dir
-				list_dir=( $classic_enabled/*(-/N:t) )
+				list_dir=( $CLASSIC_ENABLED/*(-/N:t) )
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				;;
 			esac

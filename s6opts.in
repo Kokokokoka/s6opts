@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 # Copyright (C) 2015-2016 Eric Vidal <eric@obarun.org>
 #
 # This file is distributed in the hope that it will be useful, but WITHOUT ANY
@@ -12,21 +12,26 @@
 # can do whatever you want with this stuff. If we meet some day, and you think
 # this stuff is worth it, you can buy me a beer in return.   Eric Vidal http://obarun.org
 
-#set -e
 
-if [[ -f /usr/lib/obarun/common_functions ]]; then
-	source /usr/lib/obarun/common_functions
-else
-	echo "==>> Missing file : common_functions"
-	exit	
-fi
+sourcing(){
+	
+	local list
+	
+	for list in /usr/lib/obarun/{common_functions,s6opts_functions} /etc/obarun/s6opts.conf; do
+		if [[ -f "${list}" ]]; then
+			source "${list}"
+		else
+			echo_error " Missing file : ${list}"
+			exit	
+		fi
+	done
+	
+	unset list
+}
+sourcing
 
-if [[ -f /usr/lib/obarun/s6opts_functions ]]; then
-	source /usr/lib/obarun/s6opts_functions
-else
-	echo "==>> Missing file : s6opts_functions"
-	exit	
-fi
+shellopts_save
+shellopts_set_unset "extglob" 0
 
 (( EUID == 0 )) || die " You must be run this script with root privileges"
 
@@ -35,7 +40,7 @@ if [[ -z "${2}" ]] && [[ "${1}" != @(list_db|which_db) ]]; then
 	exit 1
 fi
 
-if [[ ! -h "${database_path}/current" ]] || [[ ! -h "${database_path}/previous" ]]; then
+if [[ ! -h "${DATABASE_PATH}/current" ]] || [[ ! -h "${DATABASE_PATH}/previous" ]]; then
 	cat << EOF
 	
 To properly manage the service database, the symlinks current|previous must exist.
@@ -92,5 +97,8 @@ case "${1}" in
 	    exit 1
 	    ;;
 esac
+
+shellopts_restore
+
 exit 0
 
