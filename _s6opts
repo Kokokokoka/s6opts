@@ -23,29 +23,29 @@ source /etc/obarun/s6opts.conf
 
 _path() {
 	local list_dir
-	list_dir=( $ENABLED_PATH/*(-/N:t) )
+	list_dir=( $RC_DATABASE_SOURCE/*(-/N:t) )
 	compadd -X "choose an existing database or create a new one" "$@" -a list_dir 
 }
 _list_available() {
 	local list_dir
-	list_dir=( $AVAILABLE_PATH/*(-/N:t) )
+	list_dir=( $RC_AVAILABLE/*(-/N:t) )
 	(( $#list_dir )) && _values services $list_dir && ret=0
 }
 
-_list_remove(){
+_list_delete(){
 	local list_dir
-	list_dir=( $ENABLED_PATH/$words/*(-/N:t) )
+	list_dir=( $RC_DATABASE_SOURCE/$words/*(-/N:t) )
 	(( $#list_dir )) && _values services $list_dir && ret=0
 }
 
 _list_database(){
 	local list_dir
-	list_dir=( $DATABASE_PATH/*(-/N:t) )
+	list_dir=( $RC_DATABASE_COMPILED/*(-/N:t) )
 	(( $#list_dir )) && _values database_name $list_dir && ret=0
 }
 _list_database_to_compile(){
 	local list_dir
-	list_dir=( $ENABLED_PATH/*(-/N:t) )
+	list_dir=( $RC_DATABASE_SOURCE/*(-/N:t) )
 	(( $#list_dir )) && _values database_name $list_dir && ret=0
 }
 
@@ -59,17 +59,19 @@ case $state in
 	(cmds) 
 		local commands; commands=(
 			'add:add a service on service database'
-			'remove:remove a service on service database' 
+			'delete:delete a service on service database' 
 			'compile:compile the service database' 
 			'switch:switch the current service database'
 			'all:compile and switch the current database'
 			'list_db:list of services on current database'
 			'list:list service enabled on database for compilation'
 			'verbose:be more or less verbose (permanent change)'
-			'remove_db:remove a service database'
+			'remove:remove a source service database'
+			'remove_db:remove a compiled service database'
 			'which_db:current/previous service database used'
-			'enable:enable a classic service at boot time'
-			'disable:disable a classic service from boot time'
+			'enable:enable a classic service'
+			'disable:disable a classic service'
+			'create:create a service'
              ) 
          _describe -t commands 's6opts command' commands && ret=0    
         ret=0
@@ -82,10 +84,10 @@ case $state in
 					':database_name:_path' \
 					':services:_list_available'
 				;;
-			remove)
+			delete)
 				_arguments : \
 					'1:database_name:_path' \
-					'2:services:_list_remove' 
+					'2:services:_list_delete' 
 				;;
 			compile|all)
 				_arguments : \
@@ -94,12 +96,12 @@ case $state in
 				;;
 			switch|remove_db|list_db)
 				local list_dir
-				list_dir=( $DATABASE_PATH/*(-/N:t) )
+				list_dir=( $RC_DATABASE_COMPILED/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				;;
-			list)
+			list|remove)
 				local list_dir
-				list_dir=( $ENABLED_PATH/*(-/N:t) )
+				list_dir=( $RC_DATABASE_SOURCE/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				;;
 			which_db)
@@ -117,7 +119,7 @@ case $state in
 				;;
 			disable)
 				local list_dir
-				list_dir=( $CLASSIC_ENABLED/*(-/N:t) )
+				list_dir=( $LIVE_CLASSIC_PATH/*(-/N:t) )
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				;;
 			esac

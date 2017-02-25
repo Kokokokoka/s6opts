@@ -35,12 +35,12 @@ shellopts_set_unset "extglob" 0
 
 (( EUID == 0 )) || die " You must be run this script with root privileges"
 
-if [[ -z "${2}" ]] && [[ "${1}" != @(list_db|which_db) ]]; then
+if [[ -z "${2}" ]] && [[ "${1}" != @(list_db|which_db|create) ]]; then
 	usage
 	exit 1
 fi
 
-if [[ ! -h "${DATABASE_PATH}/current" ]] || [[ ! -h "${DATABASE_PATH}/previous" ]]; then
+if [[ ! -h "${RC_DATABASE_COMPILED}/current" ]] || [[ ! -h "${RC_DATABASE_COMPILED}/previous" ]]; then
 	cat << EOF
 	
 To properly manage the service database, the symlinks current|previous must exist.
@@ -59,8 +59,8 @@ case "${1}" in
 	add)
 	    add  "${opts}" "${where_which}"
 	    ;;
-	remove)
-	    remove "${opts}" "${where_which}"
+	delete)
+	    delete "${opts}" "${where_which}"
 	    ;;
 	compile)
 	    compile "${opts}" "${where_which}"
@@ -69,7 +69,7 @@ case "${1}" in
 	    switch "${opts}"
 	    ;;
 	all)
-	    compile_switch "${opts}" "${where_which}"
+	    all "${opts}" "${where_which}"
 	    ;;
 	list_db)
 	    list_db "${opts}"
@@ -80,6 +80,9 @@ case "${1}" in
 	verbose)
 	    verbose "${opts}"
 	    ;;
+	remove)
+		remove "${opts}"
+		;;
 	remove_db)
 	    remove_db "${opts}"
 	    ;;
@@ -91,6 +94,9 @@ case "${1}" in
 		;;
 	disable)
 		disable "${opts}"
+		;;
+	create)
+		create
 		;;
 	*)
 	    usage
