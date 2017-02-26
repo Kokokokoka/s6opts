@@ -364,14 +364,20 @@ verbose(){
 
 remove(){
 	
+	local curr
 	local -a named
 	
 	named=( ${1} )
+	curr=$(which_db current)
+	curr=${curr##*/}
 	
+	src=$(readlink -v "${RC_DATABASE_COMPILED}/${curr}.src")
+	src=${src##*/}
+
 	for tidy_loop in ${named[@]}; do
 	
-		if [[ "${tidy_loop}" == "default" ]]; then
-			die "Removing the default database is not allowed"
+		if [[ "${tidy_loop}" == "default" ]] || [[ "${tidy_loop}" == "${src}" ]]; then
+			die "Removing the default database or the source of current database is not allowed"
 		fi
 		
 		rm -r "${RC_DATABASE_SOURCE}/${tidy_loop}"
@@ -469,17 +475,15 @@ disable(){
 		fi
 
 		echo_display " Bringing down ${tidy_loop}"
-		s6-svc -d "${LIVE_CLASSIC_PATH}/""${tidy_loop}"
-		
+		s6-svc -q "${LIVE_CLASSIC_PATH}/${tidy_loop}"
+		#sleep 5
 		check_dir "${CLASSIC_ENABLED}/${tidy_loop}"
 		if (( ! $? )); then
-			rm -rf "${CLASSIC_ENABLED}/${tidy_loop}" || die " Impossible to remove ${tidy_loop}"
+			rm -Rf "${CLASSIC_ENABLED}/${tidy_loop}" || die " Impossible to remove ${tidy_loop}"
 		fi
-		
-		
-		
+				
 		echo_display " Disable ${tidy_loop}"
-		rm "${LIVE_CLASSIC_PATH}/${tidy_loop}"
+		rm -f "${LIVE_CLASSIC_PATH}/${tidy_loop}"
 		
 		echo_display " Synchronize ${LIVE_CLASSIC_PATH} directory"
 		s6-svscanctl -an "${LIVE_CLASSIC_PATH}"
@@ -675,7 +679,7 @@ edit(){
 		fi
 		enable "${named}"
 	else
-		# bundle or bundle, if bundle allow to update the database
+		# bundle or not, if bundle allow to update the database
 		search_in_dir "${RC_AVAILABLE}" "${named}" "contents"
 		if (( ! $? )); then
 			echo_display " Do you want to update your current live database with ${named} service? [y|n]"
