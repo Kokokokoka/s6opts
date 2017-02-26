@@ -479,7 +479,7 @@ disable(){
 		#sleep 5
 		check_dir "${CLASSIC_ENABLED}/${tidy_loop}"
 		if (( ! $? )); then
-			rm -Rf "${CLASSIC_ENABLED}/${tidy_loop}" || die " Impossible to remove ${tidy_loop}"
+			rm -rf "${CLASSIC_ENABLED}/${tidy_loop}" || die " Impossible to remove ${tidy_loop}"
 		fi
 				
 		echo_display " Disable ${tidy_loop}"
