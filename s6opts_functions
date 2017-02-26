@@ -430,7 +430,7 @@ enable(){
 		fi
 			
 		if [[ -h "${LIVE_CLASSIC_PATH}/${tidy_loop}" ]]; then
-			echo_info " Already enabled, do you want to send a ALARM signal to ${tidy_loop} [y|n]"
+			echo_info " Already enabled, do you want to send a ALARM signal to ${tidy_loop}? [y|n]"
 			reply_answer
 			if (( ! $? )); then
 				s6-svc -a "${LIVE_CLASSIC_PATH}/""${tidy_loop}"
@@ -510,6 +510,7 @@ create(){
 		create_rc
 	fi
 	
+	unset ans
 }
 
 create_classic(){
@@ -556,7 +557,7 @@ create_classic(){
 	remove_dir "${CLASSIC_AVAILABLE}" "${named}"
 	
 	#allow to enable the service 
-	echo_display " Do you want to enable the service $named [y|n]"
+	echo_display " Do you want to enable the service $named? [y|n]"
 	reply_answer
 	if (( $? )); then
 		exit 0
@@ -637,7 +638,7 @@ create_rc(){
 	cp -r "${work_dir}/${named}"/* "${RC_AVAILABLE}"
 	
 	#allow to enable the service 
-	echo_display " Do you want to update your current live database with ${named} service [y|n]"
+	echo_display " Do you want to update your current live database with ${named} service? [y|n]"
 	reply_answer
 	if (( $? )); then
 		exit 0
@@ -651,7 +652,7 @@ create_rc(){
 # ${1} name of the service
 edit(){
 	
-	local named
+	local named type
 	local -a classic rc
 	
 	classic=$(ls -1 ${CLASSIC_AVAILABLE})
@@ -660,9 +661,30 @@ edit(){
 	named="${1}"
 	if check_elements "${named}" ${classic[@]}; then
 		list_file "${EDITOR}" "${CLASSIC_AVAILABLE}" "${named}"
+		type=0
 	else
 		list_file "${EDITOR}" "${RC_AVAILABLE}" "${named}"
+		type=1
 	fi
+	
+	if (( ! "${type}" )); then 
+		echo_display " Do you want to enable the service? [y|n]"
+		reply_answer
+		if (( $? )); then
+			exit 0
+		fi
+		enable "${named}"
+	else
+		echo_display " Do you want to update your current live database with ${named} service? [y|n]"
+		reply_answer
+		if (( $? )); then
+			exit 0
+		fi
+		update ${named}
+	fi
+	
+	unset named type classic rc
+	
 }
 
 # ${1} name of the service to add at the current database
