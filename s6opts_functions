@@ -16,7 +16,7 @@
 
 LIST_SERV=()
 S6OPTS_CONF="/etc/obarun/s6opts.conf"
-SERVICES_TEMPLATES="/usr/share/obarun/s6opts"
+
 
 ## 		common functions
 
@@ -32,6 +32,7 @@ General options:
 	compile : compile the service database
 	switch : switch the current service database and bring up all new service
 	all : compile and switch the current database
+	update : add/remove a service(s) to the current database
 	
 	enable : enable a classic service
 	disable : disable a classic service
@@ -45,6 +46,7 @@ General options:
 	which_db : current/previous service database used
 	
 	create : create a service
+	edit : edit a service file(s)
 	
 	verbose : be more or less verbose (permanent change)
 		
@@ -60,7 +62,7 @@ add(){
 	local named where
 	where="${1}"
 	named="${2}"
-	
+
 	#check if exist or not
 	check_dir "${RC_AVAILABLE}/${named}"
 	if (( $? )); then # rc=1
@@ -115,26 +117,25 @@ add(){
 	fi
 	
 	unset named where
-	
-	exit 0
 }
 
-# ${1} name of the service to remove
-# ${2} name of the source where remove the service
+# ${1} name of the source where delete the service
+# ${2} name of the service to delete
 delete(){
 	local named
 	where="${1}"
 	named="${2}"
 	
 	#check if exist or not
-	check_dir "${RC_DATABASE_SOURCE}/${where}" "${named}"
+	check_dir "${RC_DATABASE_SOURCE}/${where}/${named}"
+	
 	if (( $? )); then # rc=1
 		echo_error " ${named} doesn't exist, choose an another name"
 		exit 1
 	fi
 	
 	# bundle or classic service?
-	search_in_dir "${RC_AVAILABLE}" "${named}" "contents"
+	search_in_dir "${RC_DATABASE_SOURCE}/${where}" "${named}" "contents"
 	
 	# if bundle, remove symlink for all name in contents file 
 	if (( ! $? )); then # it is a bundle
@@ -170,8 +171,6 @@ delete(){
 	fi
 	
 	unset named
-	
-	exit 0
 }
 
 # ${1} name of the future compiled database
@@ -213,6 +212,9 @@ compile(){
 	
 	# compile new database
 	s6-rc-compile -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_SOURCE}/${with_}" || die "Impossible to compile the new database"
+	
+	# keep the source location
+	make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${with_}" "${RC_DATABASE_COMPILED}" "${named}.src" || die "Impossible to create the symlinks for source location"
 	
 	unset named rc_curr curr curr_parse
 }
@@ -273,13 +275,11 @@ all(){
 	#named="${1:-current}"
 	named="${1}"
 	who_="${2}"
-	
+
 	compile  "${named}" "${who_}" 
 	switch "${named}"
 	
 	unset named
-	
-	exit 0
 }
 
 # ${1} name of symlinks, blank for both
@@ -520,8 +520,8 @@ create_classic(){
 
 create_rc(){
 	
-	local named work_dir tidy_loop
-	local -a templates_list
+	local named work_dir tidy_loop curr
+	local -a templates_list final_list
 	
 	#check if template exist
 	check_dir "${SERVICES_TEMPLATES}/base-s6rcserv"
@@ -580,17 +580,86 @@ create_rc(){
 	# delete uneeded directories
 	remove_dir "${work_dir}" "${named}"
 	
+	final_list=$(ls -1)
+	
 	popd &>/dev/null
 	
 	# finaly copy to the right place
 	cp -r "${work_dir}/${named}"/* "${RC_AVAILABLE}"
-
-	unset named work_dir tidy_loop
+	
+	#allow to enable the service 
+	echo_display " Do you want to update your current live database with ${named} service [y|n]"
+	reply_answer
+	if (( $? )); then
+		exit 0
+	else
+		curr=$(which_db current)
+		curr=${curr##*/}
+		echo_info_menu " Please specify the source database name for your current database"
+		echo_info_menu " PS: your current database is : ${curr}"
+		read database_src
+		
+		
+		for tidy_loop in ${final_list[@]}; do
+			echo tidy_loop::$tidy_loop
+			add "${database_src}" "${tidy_loop}"
+		done
+		
+		echo all "${curr}" "${database_src}"
+	fi
+	
+	unset named work_dir tidy_loop templates_list final_list curr
 }
 
 #{1} name of the service to edit
 edit(){
 	echo_display "under construction"
+}
+
+# ${1} name of the service to add at the current database
+# can be a list but need to be double quoted 
+# e.g update "dbus-daemon bundle-Nfs"
+update(){
+		
+	local named curr tidy_loop src
+	
+	named=( ${1} )
+	curr=$(which_db current)
+	curr=${curr##*/}
+	if [[ "${curr}" =~ "Default" ]]; then
+		echo_error " It's not allowed to update ${curr} database"
+		echo_error " Please switch your current database to another one"
+		exit 1
+	fi
+	
+	if [[ ! -h "${RC_DATABASE_COMPILED}/${curr}.src" ]]; then
+		echo_info " Your current database is : ${curr}"
+		echo_info " Impossible to determine the source for compiling your current database"
+		echo_info " Please specify the source database name"
+		read database_src
+		
+		make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${database_src}" "${RC_DATABASE_COMPILED}" "${curr}.src" || die "Impossible to create the symlinks for source location"
+	fi
+	
+	src=$(readlink -v "${RC_DATABASE_COMPILED}/${curr}.src")
+	src=${src##*/}
+		
+	for tidy_loop in ${named[@]}; do
+		echo tidy_loop::$tidy_loop
+		echo named::${named[@]}
+		check_dir "${RC_DATABASE_SOURCE}/${src}/${tidy_loop}"
+		if (( $? )); then
+			echo_info " Add ${tidy_loop} at ${src} database"
+			add "${src}" "${tidy_loop}"
+		else
+			echo_info " Delete ${tidy_loop} from ${src} database"
+			delete "${src}" "${tidy_loop}"
+		fi
+	done
+	
+	all "${curr}" "${src}"
+	
+	unset named curr src tidy_loop
 }
 
 ##############################################
