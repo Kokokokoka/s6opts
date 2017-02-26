@@ -593,19 +593,7 @@ create_rc(){
 	if (( $? )); then
 		exit 0
 	else
-		curr=$(which_db current)
-		curr=${curr##*/}
-		echo_info_menu " Please specify the source database name for your current database"
-		echo_info_menu " PS: your current database is : ${curr}"
-		read database_src
-		
-		
-		for tidy_loop in ${final_list[@]}; do
-			echo tidy_loop::$tidy_loop
-			add "${database_src}" "${tidy_loop}"
-		done
-		
-		echo all "${curr}" "${database_src}"
+		update ${final_list[@]}
 	fi
 	
 	unset named work_dir tidy_loop templates_list final_list curr
@@ -621,11 +609,13 @@ edit(){
 # e.g update "dbus-daemon bundle-Nfs"
 update(){
 		
-	local named curr tidy_loop src
+	local curr tidy_loop src
+	local -a named
 	
 	named=( ${1} )
 	curr=$(which_db current)
 	curr=${curr##*/}
+	
 	if [[ "${curr}" =~ "Default" ]]; then
 		echo_error " It's not allowed to update ${curr} database"
 		echo_error " Please switch your current database to another one"
