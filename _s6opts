@@ -34,8 +34,8 @@ _list_available() {
 
 _list_delete(){
 	local list_dir
-	list_dir=( $RC_DATABASE_SOURCE/$words/*(-/N:t) )
-	(( $#list_dir )) && _values services $list_dir && ret=0
+	list_dir=( $RC_DATABASE_SOURCE/*/*(-/N:t) )
+	(( $#list_dir )) && _values services $list_dir #&& ret=0
 }
 
 _list_database(){
@@ -43,6 +43,7 @@ _list_database(){
 	list_dir=( $RC_DATABASE_COMPILED/*(-/N:t) )
 	(( $#list_dir )) && _values database_name $list_dir && ret=0
 }
+
 _list_database_to_compile(){
 	local list_dir
 	list_dir=( $RC_DATABASE_SOURCE/*(-/N:t) )
@@ -85,16 +86,16 @@ case $state in
 			add)
 				_arguments : \
 					':database_name:_path' \
-					':services:_list_available'
+					'*:services:_list_available'
 				;;
 			delete)
 				_arguments : \
-					'1:database_name:_path' \
-					'2:services:_list_delete' 
+					':database_name:_path' \
+					'*:services:_list_delete' 
 				;;
 			update)
 				_arguments : \
-					':services:_list_database_to_compile' 
+					'*:services:_list_available' 
 				;;
 			compile|all)
 				_arguments : \

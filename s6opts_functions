@@ -60,118 +60,132 @@ EOF
 # ${1} name of the source where add the service
 # ${2} name of the service to add
 add(){
-	local named where
+	
+	local where tidy_loop
+	local -a named
+	
 	where="${1}"
-	named="${2}"
-
-	#check if exist or not
-	check_dir "${RC_AVAILABLE}/${named}"
-	if (( $? )); then # rc=1
-		echo_error " ${named} doesn't exist, choose an another name"
-		exit 1
-	fi	
+	named=( ${2} )
+	
+	for tidy_loop in ${named[@]}; do
+	
+		#check if exist or not
+		check_dir "${RC_AVAILABLE}/${tidy_loop}"
+		if (( $? )); then # rc=1
+			echo_error " ${tidy_loop} doesn't exist, choose an another name"
+			exit 1
+		fi	
 		
-	# check if directory where exist
-	# if not, create it with the necessary file/folder
-	check_dir "${RC_DATABASE_SOURCE}/${where}"
-	if (( $? )); then
-		echo_display " ${where} does not exist, create it with the necessary files"
-		mkdir -p -m 0755 "${RC_DATABASE_SOURCE}/${where}" || die "Impossible to create the directroy ${RC_DATABASE_SOURCE}/${where}"
-		cp -r "${RC_DATABASE_SOURCE}/default/All" "${RC_DATABASE_SOURCE}/${where}" || die "Impossible to copy from ${RC_DATABASE_SOURCE}/All to ${RC_DATABASE_SOURCE}/${where}"
-	else
-		if ! [[ -d "${RC_DATABASE_SOURCE}/${where}/All" ]]; then
-			echo_info " Folder All does not exist, create it" 
+		# check if directory where exist
+		# if not, create it with the necessary file/folder
+		check_dir "${RC_DATABASE_SOURCE}/${where}"
+		if (( $? )); then
+			echo_display " ${where} does not exist, create it with the necessary files"
+			mkdir -p -m 0755 "${RC_DATABASE_SOURCE}/${where}" || die "Impossible to create the directroy ${RC_DATABASE_SOURCE}/${where}"
 			cp -r "${RC_DATABASE_SOURCE}/default/All" "${RC_DATABASE_SOURCE}/${where}" || die "Impossible to copy from ${RC_DATABASE_SOURCE}/All to ${RC_DATABASE_SOURCE}/${where}"
+		else
+			if ! [[ -d "${RC_DATABASE_SOURCE}/${where}/All" ]]; then
+				echo_info " Folder All does not exist, create it" 
+				cp -r "${RC_DATABASE_SOURCE}/default/All" "${RC_DATABASE_SOURCE}/${where}" || die "Impossible to copy from ${RC_DATABASE_SOURCE}/All to ${RC_DATABASE_SOURCE}/${where}"
+			fi
 		fi
-	fi
 	
 	
-	# bundle or classic service?
-	search_in_dir "${RC_AVAILABLE}" "${named}" "contents"
+		# bundle or classic service?
+		search_in_dir "${RC_AVAILABLE}" "${tidy_loop}" "contents"
 	
-	# if bundle, create symlink for all name in contents file 
-	if (( ! $? )); then # it is a bundle
-		parse_file "${RC_AVAILABLE}/${named}" "contents"
-		while read -d "," line; do
-			cp -rau "${RC_AVAILABLE}/${line}" "${RC_DATABASE_SOURCE}/${where}"
-		done <<< "${LIST_SERV[@]}"
-		LIST_SERV=()
-		cp -rau "${RC_AVAILABLE}/${named}" "${RC_DATABASE_SOURCE}/${where}" 
+		# if bundle, create symlink for all name in contents file 
+		if (( ! $? )); then # it is a bundle
+			parse_file "${RC_AVAILABLE}/${tidy_loop}" "contents"
+			while read -d "," line; do
+				cp -rau "${RC_AVAILABLE}/${line}" "${RC_DATABASE_SOURCE}/${where}"
+			done <<< "${LIST_SERV[@]}"
+			LIST_SERV=()
+			cp -rau "${RC_AVAILABLE}/${tidy_loop}" "${RC_DATABASE_SOURCE}/${where}" 
 				
-		# be sure that the name doesn't exist on file contents
-		search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${named}"
-		if (( $? )); then
-			echo "${named}" >> "${RC_DATABASE_SOURCE}/${where}/All/contents"
-			# remove empty line
-			sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
-		fi
-	else
-		cp -rau "${RC_AVAILABLE}/${named}" "${RC_DATABASE_SOURCE}/${where}"
+			# be sure that the name doesn't exist on file contents
+			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
+			if (( $? )); then
+				echo "${tidy_loop}" >> "${RC_DATABASE_SOURCE}/${where}/All/contents"
+				# remove empty line
+				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+			fi
+		else
+			cp -rau "${RC_AVAILABLE}/${tidy_loop}" "${RC_DATABASE_SOURCE}/${where}"
 		
-		# be sure that the name doesn't exist on file contents
-		search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${named}"
-		if (( $? )); then
-			echo "${named}" >> "${RC_DATABASE_SOURCE}/${where}/All/contents"
-			# remove empty line
-			sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+			# be sure that the name doesn't exist on file contents
+			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
+			if (( $? )); then
+				echo "${tidy_loop}" >> "${RC_DATABASE_SOURCE}/${where}/All/contents"
+				# remove empty line
+				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+			fi
 		fi
-	fi
 	
-	unset named where
+	done
+	
+	unset named where tidy_loop
 }
 
 # ${1} name of the source where delete the service
 # ${2} name of the service to delete
 delete(){
-	local named
+	
+	local tidy_loop where
+	local -a named
+	
 	where="${1}"
-	named="${2}"
+	named=( ${2} )
 	
-	#check if exist or not
-	check_dir "${RC_DATABASE_SOURCE}/${where}/${named}"
+	for tidy_loop in ${named[@]}; do
 	
-	if (( $? )); then # rc=1
-		echo_error " ${named} doesn't exist, choose an another name"
-		exit 1
-	fi
-	
-	# bundle or classic service?
-	search_in_dir "${RC_DATABASE_SOURCE}/${where}" "${named}" "contents"
-	
-	# if bundle, remove symlink for all name in contents file 
-	if (( ! $? )); then # it is a bundle
-		parse_file "${RC_DATABASE_SOURCE}/${where}/${named}" "contents"
-		while read -d "," line; do
-			rm -r "${RC_DATABASE_SOURCE}/${where}/${line}"
-			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${line}"
+		#check if exist or not
+		check_dir "${RC_DATABASE_SOURCE}/${where}/${tidy_loop}"
+		
+		if (( $? )); then # rc=1
+			echo_error " ${tidy_loop} doesn't exist, choose an another name"
+			exit 1
+		fi
+		
+		# bundle or classic service?
+		search_in_dir "${RC_DATABASE_SOURCE}/${where}" "${tidy_loop}" "contents"
+		
+		# if bundle, remove symlink for all name in contents file 
+		if (( ! $? )); then # it is a bundle
+			parse_file "${RC_DATABASE_SOURCE}/${where}/${tidy_loop}" "contents"
+			while read -d "," line; do
+				rm -r "${RC_DATABASE_SOURCE}/${where}/${line}"
+				search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${line}"
+				if (( ! $? )); then
+					sed -i "s:${line}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+					# remove empty line
+					sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+				fi
+			done <<< "${LIST_SERV[@]}"
+			LIST_SERV=()
+			rm -r "${RC_DATABASE_SOURCE}/${where}/${tidy_loop}" 
+			
+			# remove bundle name on file contents
+			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
 			if (( ! $? )); then
-				sed -i "s:${line}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+				sed -i "s:${tidy_loop}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 				# remove empty line
 				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 			fi
-		done <<< "${LIST_SERV[@]}"
-		LIST_SERV=()
-		rm -r "${RC_DATABASE_SOURCE}/${where}/${named}" 
-		
-		# remove bundle name on file contents
-		search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${named}"
-		if (( ! $? )); then
-			sed -i "s:${named}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
-			# remove empty line
-			sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+		else
+			rm -r "${RC_DATABASE_SOURCE}/${where}/${tidy_loop}"
+			# remove service name on file contents
+			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
+			if (( ! $? )); then
+				sed -i "s:${tidy_loop}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+				# remove empty line
+				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
+			fi
 		fi
-	else
-		rm -r "${RC_DATABASE_SOURCE}/${where}/${named}"
-		# remove service name on file contents
-		search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${named}"
-		if (( ! $? )); then
-			sed -i "s:${named}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
-			# remove empty line
-			sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
-		fi
-	fi
 	
-	unset named
+	done
+	
+	unset named where tidy_loop
 }
 
 # ${1} name of the future compiled database
@@ -184,7 +198,7 @@ compile(){
 	rc_curr=1
 	curr=$(which_db current)
 	curr_parse=${curr##*/}
-	
+
 	check_dir "${RC_DATABASE_COMPILED}/${named}.old"
 	if (( ! $? )); then
 		rc_curr=0
@@ -345,27 +359,40 @@ verbose(){
 
 remove(){
 	
-	local named
-	named="${1}"
+	local -a named
 	
-	if [[ "${named}" == "default" ]]; then
-		die "Removing the default database is not allowed"
-	fi
+	named=( ${1} )
 	
-	rm -r "${RC_DATABASE_SOURCE}/${named}"
+	for tidy_loop in ${named[@]}; do
 	
-	unset named
+		if [[ "${tidy_loop}" == "default" ]]; then
+			die "Removing the default database is not allowed"
+		fi
+		
+		rm -r "${RC_DATABASE_SOURCE}/${tidy_loop}"
+	
+	done
+	
+	unset named tidy_loop
 }
+
 remove_db(){
-	local named curr
-	named="${1}"
+	
+	local curr
+	local -a named
+	
+	named=( ${1} )
 	curr=$(which_db current)
 	
-	if [[ "${RC_DATABASE_COMPILED}/${named}" == "${curr}" ]]; then
-		die "Removing the current database is not allowed"
-	fi
+	for tidy_loop in ${named[@]}; do
+			
+		if [[ "${RC_DATABASE_COMPILED}/${tidy_loop}" == "${curr}" ]]; then
+			die "Removing the current database is not allowed"
+		fi
+		
+		rm -r "${RC_DATABASE_COMPILED}/${tidy_loop}"
 	
-	rm -r "${RC_DATABASE_COMPILED}/${named}"
+	done
 	
 	unset named curr
 	
@@ -374,75 +401,89 @@ remove_db(){
 
 # ${1} name of the service
 enable(){
-	local named
-	named="${1}"
 	
-	check_dir "${CLASSIC_AVAILABLE}/${named}"
-	if (( ! $? )); then
-		if [[ -d "${CLASSIC_ENABLED}/${named}" ]]; then
-			echo_info "${named} already exist at ${CLASSIC_ENABLED}, do you want to synchronize it [y|n]"
-			reply_answer
-			if (( ! $? )); then
-				cp -ra "${CLASSIC_AVAILABLE}/${named}" "${CLASSIC_ENABLED}/" || die "Impossible to copy ${named} to ${CLASSIC_ENABLED}"
+	local tidy_loop
+	local -a named
+	
+	named=( ${1} )
+	
+	for tidy_loop in ${named[@]}; do
+		
+		check_dir "${CLASSIC_AVAILABLE}/${tidy_loop}"
+		if (( ! $? )); then
+			if [[ -d "${CLASSIC_ENABLED}/${tidy_loop}" ]]; then
+				echo_info "${tidy_loop} already exist at ${CLASSIC_ENABLED}, do you want to synchronize it [y|n]"
+				reply_answer
+				if (( ! $? )); then
+					cp -ra "${CLASSIC_AVAILABLE}/${tidy_loop}" "${CLASSIC_ENABLED}/" || die "Impossible to copy ${tidy_loop} to ${CLASSIC_ENABLED}"
+				else
+					echo_valid " Keeping the old version"
+				fi
 			else
-				echo_valid " Keeping the old version"
+				cp -r "${CLASSIC_AVAILABLE}/${tidy_loop}" "${CLASSIC_ENABLED}/${tidy_loop}" || die "Impossible to copy ${tidy_loop} to ${CLASSIC_ENABLED}"
 			fi
 		else
-			cp -r "${CLASSIC_AVAILABLE}/${named}" "${CLASSIC_ENABLED}/${named}" || die "Impossible to copy ${named} to ${CLASSIC_ENABLED}"
+			die "${tidy_loop} does not exist, choose another one"
 		fi
-	else
-		die "${named} does not exist, choose another one"
-	fi
-		
-	if [[ -h "${LIVE_CLASSIC_PATH}/${named}" ]]; then
-		echo_info " Already enabled, do you want to send a ALARM signal to ${named} [y|n]"
-		reply_answer
-		if (( ! $? )); then
-			s6-svc -a "${LIVE_CLASSIC_PATH}/""${named}"
+			
+		if [[ -h "${LIVE_CLASSIC_PATH}/${tidy_loop}" ]]; then
+			echo_info " Already enabled, do you want to send a ALARM signal to ${tidy_loop} [y|n]"
+			reply_answer
+			if (( ! $? )); then
+				s6-svc -a "${LIVE_CLASSIC_PATH}/""${tidy_loop}"
+			fi
+		else
+			echo_display " Enable ${tidy_loop}"
+			make_symlinks "-s" "${CLASSIC_ENABLED}/${tidy_loop}" "${LIVE_CLASSIC_PATH}" "${tidy_loop}"
+			
+			echo_display " Bringing up ${tidy_loop}"
+			s6-svscanctl -an "${LIVE_CLASSIC_PATH}"
 		fi
-	else
-		echo_display " Enable ${named}"
-		make_symlinks "-s" "${CLASSIC_ENABLED}/${named}" "${LIVE_CLASSIC_PATH}" "${named}"
-		
-		echo_display " Bringing up ${named}"
-		s6-svscanctl -an "${LIVE_CLASSIC_PATH}"
-	fi
 	
-	exit 0
+	done
+	
+	unset named tidy_loop
 }
 
 # ${1} name of the service
 disable(){
-	local named
-	named="${1}"
-	link_=$(readlink "${LIVE_CLASSIC_PATH}/${named}")
 	
-	if [[ "${link_}" != "${CLASSIC_ENABLED}/${named}" ]]; then
-		die " Not a classic service, choose another one"
-	fi
-	if [[ ! -h "${LIVE_CLASSIC_PATH}/${named}" ]]; then
-		echo_info " Not enabled, nothing to do"
-		exit 0
-	fi
+	local tidy_loop link_
+	local -a named
+	
+	named=( ${1} )
+	
+	for tidy_loop in ${named[@]}; do
+		
+		link_=$(readlink "${LIVE_CLASSIC_PATH}/${tidy_loop}")
+		
+		if [[ "${link_}" != "${CLASSIC_ENABLED}/${tidy_loop}" ]]; then
+			die " Not a classic service, choose another one"
+		fi
+		if [[ ! -h "${LIVE_CLASSIC_PATH}/${tidy_loop}" ]]; then
+			echo_info " Not enabled, nothing to do"
+			exit 0
+		fi
 
-	echo_display " Bringing down ${named}"
-	s6-svc -d "${LIVE_CLASSIC_PATH}/""${named}"
+		echo_display " Bringing down ${tidy_loop}"
+		s6-svc -d "${LIVE_CLASSIC_PATH}/""${tidy_loop}"
+		
+		check_dir "${CLASSIC_ENABLED}/${tidy_loop}"
+		if (( ! $? )); then
+			rm -rf "${CLASSIC_ENABLED}/${tidy_loop}" || die " Impossible to remove ${tidy_loop}"
+		fi
+		
+		
+		
+		echo_display " Disable ${tidy_loop}"
+		rm "${LIVE_CLASSIC_PATH}/${tidy_loop}"
+		
+		echo_display " Synchronize ${LIVE_CLASSIC_PATH} directory"
+		s6-svscanctl -an "${LIVE_CLASSIC_PATH}"
 	
-	check_dir "${CLASSIC_ENABLED}/${named}"
-	if (( ! $? )); then
-		rm -rf "${CLASSIC_ENABLED}/${named}" || die " Impossible to remove ${named}"
-	fi
+	done
 	
-	
-	
-	echo_display " Disable ${named}"
-	rm "${LIVE_CLASSIC_PATH}/${named}"
-	
-	echo_display " Synchronize ${LIVE_CLASSIC_PATH} directory"
-	s6-svscanctl -an "${LIVE_CLASSIC_PATH}"
-	
-	exit 0
-	
+	unset named tidy_loop link_	
 }
 
 create(){

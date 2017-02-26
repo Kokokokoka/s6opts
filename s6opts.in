@@ -52,15 +52,15 @@ EOF
 exit 1
 fi
 
-opts="${2}"
-where_which="${3}"
-update_opts=( "${2}" )
+opts=( "${2}" )
+where_which=( "${3}" )
+
 case "${1}" in
 	add)
-	    add  "${opts}" "${where_which}"
+	    add  "${opts}" "${where_which[@]}"
 	    ;;
 	delete)
-	    delete "${opts}" "${where_which}"
+	    delete "${opts}" "${where_which[@]}"
 	    ;;
 	compile)
 	    compile "${opts}" "${where_which}"
@@ -72,7 +72,7 @@ case "${1}" in
 	    all "${opts}" "${where_which}"
 	    ;;
 	update)
-		update "${update_opts[@]}"
+		update "${opts[@]}"
 		;;
 	list_db)
 	    list_db "${opts}"
@@ -87,19 +87,19 @@ case "${1}" in
 	    verbose "${opts}"
 	    ;;
 	remove)
-		remove "${opts}"
+		remove "${opts[@]}"
 		;;
 	remove_db)
-	    remove_db "${opts}"
+	    remove_db "${opts[@]}"
 	    ;;
 	which_db)
 	    which_db "${opts}"
 	    ;;
 	enable)
-		enable "${opts}"
+		enable "${opts[@]}"
 		;;
 	disable)
-		disable "${opts}"
+		disable "${opts[@]}"
 		;;
 	create)
 		create
