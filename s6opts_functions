@@ -39,6 +39,7 @@ General options:
 		
 	list : list service enabled on database for compilation
 	list_db : list of services of live database
+	list_classic : list of service enabled at boot time
 	
 	remove : remove a source service database
 	remove_db : remove a compiled service database
@@ -322,7 +323,11 @@ list(){
 		
 	unset named
 }
-
+list_classic(){
+	
+	ls -1 --color --group-directories-first "${CLASSIC_ENABLED}"
+	
+}
 verbose(){
 	local verb
 	verb="${1}"

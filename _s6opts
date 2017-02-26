@@ -74,6 +74,7 @@ case $state in
 			'disable:disable a classic service'
 			'create:create a service'
 			'edit:edit a service file(s)'
+			'list_classic:list of services enabled at boot time'
              ) 
          _describe -t commands 's6opts command' commands && ret=0    
         ret=0
