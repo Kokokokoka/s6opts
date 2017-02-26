@@ -675,12 +675,16 @@ edit(){
 		fi
 		enable "${named}"
 	else
-		echo_display " Do you want to update your current live database with ${named} service? [y|n]"
-		reply_answer
-		if (( $? )); then
-			exit 0
+		# bundle or bundle, if bundle allow to update the database
+		search_in_dir "${RC_AVAILABLE}" "${named}" "contents"
+		if (( ! $? )); then
+			echo_display " Do you want to update your current live database with ${named} service? [y|n]"
+			reply_answer
+			if (( $? )); then
+				exit 0
+			fi
+			update ${named}
 		fi
-		update ${named}
 	fi
 	
 	unset named type classic rc
@@ -718,8 +722,7 @@ update(){
 	src=${src##*/}
 		
 	for tidy_loop in ${named[@]}; do
-		echo tidy_loop::$tidy_loop
-		echo named::${named[@]}
+	
 		check_dir "${RC_DATABASE_SOURCE}/${src}/${tidy_loop}"
 		if (( $? )); then
 			echo_info " Add ${tidy_loop} at ${src} database"
