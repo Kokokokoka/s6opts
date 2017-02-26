@@ -63,6 +63,7 @@ case $state in
 			'compile:compile the service database' 
 			'switch:switch the current service database'
 			'all:compile and switch the current database'
+			'update:add a service(s) to the current database'
 			'list_db:list of services on current database'
 			'list:list service enabled on database for compilation'
 			'verbose:be more or less verbose (permanent change)'
@@ -72,12 +73,13 @@ case $state in
 			'enable:enable a classic service'
 			'disable:disable a classic service'
 			'create:create a service'
+			'edit:edit a service file(s)'
              ) 
          _describe -t commands 's6opts command' commands && ret=0    
         ret=0
         ;;
     (args)
-		curcontext="${curcontext%:*:*}:svopts-cmd-$words[1]:"
+		curcontext="${curcontext%:*:*}:s6opts-cmd-$words[1]:"
 		case $words[1] in
 			add)
 				_arguments : \
@@ -88,6 +90,10 @@ case $state in
 				_arguments : \
 					'1:database_name:_path' \
 					'2:services:_list_delete' 
+				;;
+			update)
+				_arguments : \
+					':services:_list_database_to_compile' 
 				;;
 			compile|all)
 				_arguments : \
