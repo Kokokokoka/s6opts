@@ -130,6 +130,12 @@ case $state in
 				list_dir=( $LIVE_CLASSIC_PATH/*(-/N:t) )
 				(( $#list_dir )) && _values services $list_dir && ret=0
 				;;
+			edit)
+				local list_dir
+				list_dir=( $CLASSIC_AVAILABLE/*(-/N:t) )
+				list_dir+=( $RC_AVAILABLE/*(-/N:t) )
+				(( $#list_dir )) && _values services $list_dir && ret=0
+				;;
 			esac
 			
 	;;

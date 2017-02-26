@@ -191,8 +191,9 @@ delete(){
 # ${1} name of the future compiled database
 # ${2} name of the source to compile the database
 compile(){
-	local named rc_curr curr curr_parse
-	#named="${1:-current}"
+	
+	local named rc_curr curr curr_parse with_
+	
 	named="${1}"
 	with_="${2}"
 	rc_curr=1
@@ -231,14 +232,15 @@ compile(){
 	# keep the source location
 	make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${with_}" "${RC_DATABASE_COMPILED}" "${named}.src" || die "Impossible to create the symlinks for source location"
 	
-	unset named rc_curr curr curr_parse
+	unset named rc_curr curr curr_parse with_
 }
 
 # ${1} name of the database to switch
 switch(){
+	
 	local named rc_curr rc_first curr curr_parse prev prev_parse
 	local -a which_up prev_db
-	#named="${1:-current}"
+	
 	named="${1}"
 	rc_curr=1
 	rc_first=1
@@ -286,8 +288,9 @@ switch(){
 # ${1} name of the future compiled database
 # ${2} name of the source to compile the database
 all(){
+	
 	local named
-	#named="${1:-current}"
+	
 	named="${1}"
 	who_="${2}"
 
@@ -299,7 +302,9 @@ all(){
 
 # ${1} name of symlinks, blank for both
 which_db(){
+	
 	local named
+	
 	named="${1}"
 	
 	if [[ -z "${named}" ]]; then
@@ -314,7 +319,9 @@ which_db(){
 
 # ${1} which database, blank for live
 list_db(){
+	
 	local named
+	
 	named="${1}"
 	
 	if [[ -z "${named}" ]]; then
@@ -325,7 +332,6 @@ list_db(){
 	
 	unset named
 	
-	exit 0
 }
 
 # ${1} working database directory
@@ -354,7 +360,6 @@ verbose(){
 	
 	unset verb 
 	
-	exit 0
 }
 
 remove(){
@@ -395,8 +400,6 @@ remove_db(){
 	done
 	
 	unset named curr
-	
-	exit 0
 }
 
 # ${1} name of the service
@@ -645,9 +648,21 @@ create_rc(){
 	unset named work_dir tidy_loop templates_list final_list curr
 }
 
-#{1} name of the service to edit
+# ${1} name of the service
 edit(){
-	echo_display "under construction"
+	
+	local named
+	local -a classic rc
+	
+	classic=$(ls -1 ${CLASSIC_AVAILABLE})
+	rc=$(ls -1 ${RC_AVAILABLE})
+	
+	named="${1}"
+	if check_elements "${named}" ${classic[@]}; then
+		list_file "${EDITOR}" "${CLASSIC_AVAILABLE}" "${named}"
+	else
+		list_file "${EDITOR}" "${RC_AVAILABLE}" "${named}"
+	fi
 }
 
 # ${1} name of the service to add at the current database
@@ -707,7 +722,9 @@ update(){
 # ${3} searched onto the database
 # return 0 on success, 1 on fail
 search_in_db(){
+	
 	local path_file named search line_ in_db
+	
 	path_file="${1:-${RC_DATABASE_COMPILED}}"
 	named="${2:-current}"
 	search="${3}"
@@ -726,7 +743,9 @@ search_in_db(){
 # ${1} path to the file
 # ${2} file to parse
 parse_file(){
+	
 	local check path_file named
+	
 	path_file="${1}"
 	named="${2}"
 	
@@ -740,7 +759,9 @@ parse_file(){
 # ${1} action, must be u for up or d for down
 # ${2} name of the bundle/service to bring up/down
 bringing(){
+	
 	local action named
+	
 	action="${1}"
 	named="${2}"
 	
@@ -753,8 +774,10 @@ bringing(){
 # ${1} current database
 # ${2} previous database
 compare_db(){
+	
 	local curr prev check line_
 	local -a curr_db which_up
+	
 	curr="${1}"
 	prev="${2}"
 
@@ -780,6 +803,7 @@ compare_db(){
 copy_templates(){
 
 	local templates_sort available_sort
+	
 	templates_sort="${1}"
 	available_sort="${2}"
 	
@@ -793,6 +817,7 @@ copy_templates(){
 remove_file(){
 	
 	local _path _named
+	
 	_path="${1}"
 	_named="${2}"
 	
