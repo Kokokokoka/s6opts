@@ -62,11 +62,11 @@ case $state in
 			'add:add a service on service database'
 			'delete:delete a service on service database' 
 			'compile:compile the service database' 
-			'switch:switch the current service database'
-			'all:compile and switch the current database'
-			'update:add a service(s) to the current database'
-			'list_db:list of services on current database'
-			'list:list service enabled on database for compilation'
+			'switch:switch the live service database'
+			'all:compile and switch the live database'
+			'update:add a service(s) to the live database'
+			'list:list of services on live database or from a given name of compiled database'
+			'list_source:list service enabled on database for compilation'
 			'verbose:be more or less verbose (permanent change)'
 			'remove:remove a source service database'
 			'remove_db:remove a compiled service database'
@@ -75,7 +75,6 @@ case $state in
 			'disable:disable a classic service'
 			'create:create a service'
 			'edit:edit a service file(s)'
-			'list_classic:list of services enabled at boot time'
              ) 
          _describe -t commands 's6opts command' commands && ret=0    
         ret=0
@@ -102,12 +101,12 @@ case $state in
 					':live_database_name:_list_database' \
 					':compiled_database_name:_list_database_to_compile' 
 				;;
-			switch|remove_db|list_db)
+			switch|remove_db|list)
 				local list_dir
 				list_dir=( $RC_DATABASE_COMPILED/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0
 				;;
-			list|remove)
+			list_source|remove)
 				local list_dir
 				list_dir=( $RC_DATABASE_SOURCE/*(-/N:t) )
 				(( $#list_dir )) && _values database_name $list_dir && ret=0

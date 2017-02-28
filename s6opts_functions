@@ -37,10 +37,9 @@ General options:
 	enable : enable a classic service
 	disable : disable a classic service
 		
-	list : list service enabled on database for compilation
-	list_db : list of services of live database
-	list_classic : list of service enabled at boot time
-	
+	list : list classic/rc services from live database or a service(s) from a named compiled database
+	list_source : list service enabled on database for compilation
+		
 	remove : remove a source service database
 	remove_db : remove a compiled service database
 	
@@ -318,24 +317,76 @@ which_db(){
 }
 
 # ${1} which database, blank for live
-list_db(){
+list(){
 	
-	local named
+	local named tidy_loop
+	local -a classic_list rc_oneshots rc_bundles rc_longruns
 	
 	named="${1}"
 	
-	if [[ -z "${named}" ]]; then
-	    s6-rc-db -l "${LIVE_RC_PATH}" list all
+	classic_list=$(ls -1 ${CLASSIC_ENABLED}| sort)
+	
+	
+	if (( ! "${#named}" )); then
+
+		rc_oneshots=$(s6-rc-db -l ${LIVE_RC_PATH} list oneshots| sort)
+		rc_bundles=$(s6-rc-db -l ${LIVE_RC_PATH} list bundles| sort)
+		rc_longruns=$(s6-rc-db -l ${LIVE_RC_PATH} list longruns | sort)
+
+		for tidy_loop in ${LIVE_CLASSIC_PATH}/*; do
+			if check_elements "${tidy_loop##*/}" ${classic_list[@]}; then
+				classic_list_parsed+=(${tidy_loop})				
+			elif check_elements "${tidy_loop##*/}" ${rc_longruns[@]};then
+				rc_longruns_parsed+=(${tidy_loop})
+			fi
+		done
+
+		display_classic_title
+		for tidy_loop in ${classic_list_parsed[@]}; do
+			printf "%s\n" " ${bold}${tidy_loop##*/}${blue} ::${reset} $(s6-svstat ${tidy_loop})"
+		done
+		
+		display_rc_longruns_title
+		for tidy_loop in ${rc_longruns_parsed[@]}; do
+			printf "%s\n" " ${bold}${tidy_loop##*/}${green} ::${reset} $(s6-svstat ${tidy_loop})"
+		done
+	
+		display_rc_oneshots_title
+		for tidy_loop in ${rc_oneshots[@]}; do 
+			printf "%s\n" " ${bold}${tidy_loop##*/}${yellow}${reset}" 
+		done
+		
+		display_rc_bundles_title
+		for tidy_loop in ${rc_bundles[@]}; do 
+			printf "%s\n" " ${bold}${tidy_loop##*/}${yellow}${reset}" 
+		done
 	else
-	    s6-rc-db -c "${RC_DATABASE_COMPILED}/${named}" list all
+		rc_oneshots=$(s6-rc-db -c "${RC_DATABASE_COMPILED}/${named}" list oneshots | sort)
+		rc_bundles=$(s6-rc-db -c "${RC_DATABASE_COMPILED}/${named}" list bundles | sort)
+		rc_longruns=$(s6-rc-db -c "${RC_DATABASE_COMPILED}/${named}" list longruns | sort)
+	    		
+		display_rc_longruns_title
+		for tidy_loop in ${rc_longruns[@]}; do
+			printf "%s\n" " ${bold}${tidy_loop##*/}${green}${reset}"
+		done
+		
+		display_rc_oneshots_title
+		for tidy_loop in ${rc_oneshots[@]}; do 
+			printf "%s\n" " ${bold}${tidy_loop##*/}${yellow}${reset}"
+		done
+		
+		display_rc_bundles_title
+		for tidy_loop in ${rc_bundles[@]}; do 
+			printf "%s\n" " ${bold}${tidy_loop##*/}${yellow}${reset}" 
+		done
 	fi
 	
-	unset named
+	unset named rc_list tidy_loop
 	
 }
 
 # ${1} working database directory
-list(){
+list_source(){
 	local named
 	named="${1}"
 	
@@ -343,11 +394,7 @@ list(){
 		
 	unset named
 }
-list_classic(){
-	
-	ls -1 --color --group-directories-first "${CLASSIC_ENABLED}"
-	
-}
+
 verbose(){
 	local verb
 	verb="${1}"
@@ -971,4 +1018,28 @@ sub_list(){
 	done
 	
 	unset action dir _named sub_dir sub_list sub_file
+}
+
+display_classic_title(){
+	printf "\n"
+	printf "%s\n" "${bblue}Classic service(s)${reset}"
+	printf "\n"
+}
+
+display_rc_longruns_title(){
+	printf "\n"
+	printf "%s\n" "${bgreen}Rc longruns service(s)${reset}"
+	printf "\n"
+}
+
+display_rc_oneshots_title(){
+	printf "\n"
+	printf "%s\n" "${byellow}Rc oneshots service(s)${reset}"
+	printf "\n"
+}
+
+display_rc_bundles_title(){
+	printf "\n"
+	printf "%s\n" "${byellow}Rc bundles${reset}"
+	printf "\n"
 }

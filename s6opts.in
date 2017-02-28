@@ -35,7 +35,7 @@ shellopts_set_unset "extglob" 0
 
 (( EUID == 0 )) || die " You must be run this script with root privileges"
 
-if [[ -z "${2}" ]] && [[ "${1}" != @(list_classic|list_db|which_db|create|update) ]]; then
+if [[ -z "${2}" ]] && [[ "${1}" != @(list|which_db|create|update) ]]; then
 	usage
 	exit 1
 fi
@@ -74,14 +74,11 @@ case "${1}" in
 	update)
 		update "${opts[@]}"
 		;;
-	list_db)
-	    list_db "${opts}"
-	    ;;
 	list)
-		list "${opts}"
-		;;
-	list_classic)
-		list_classic
+	    list "${opts}"
+	    ;;
+	list_source)
+		list_source "${opts}"
 		;;
 	verbose)
 	    verbose "${opts}"
