@@ -191,32 +191,49 @@ delete(){
 # ${2} name of the source to compile the database
 compile(){
 	
-	local named rc_curr curr curr_parse with_
+	local named rc_curr curr curr_parse with
 	
 	named="${1}"
-	with_="${2}"
+	with="${2}"
+		
 	rc_curr=1
 	curr=$(which_db current)
 	curr_parse=${curr##*/}
-
-	check_dir "${RC_DATABASE_COMPILED}/${named}.old"
-	if (( ! $? )); then
-		rc_curr=0
-	fi
+	prev=$(which_db previous)
+	prev_parse=${prev##*/}
 		
-	if [[ "${named}" == "current" ]] || [[ "${named}" == "${curr_parse}" ]]; then
-		named=${curr}
-		named=${named##*/}
-		if (( "$rc_curr" )); then # .old do not exist
-		    cp -rf "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_COMPILED}/${named}.old" || die "Impossible to cp ${named} to ${named}.old"
-		    s6-rc-update -l "${LIVE_RC_PATH}" -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}.old" || die "Impossible to update the new database"
-		    rm -r "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to remove ${named}"
-		    make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}.old" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
-		else # .old exist
-		    s6-rc-update -l "${LIVE_RC_PATH}" -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}.old" || die "Impossible to update the new database"
-		    rm -r "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to remove ${named}"
-		    make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}.old" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
+	# be sure that Default is not used
+	if [[ "${curr_parse}" == "Default" ]] && [[ "${prev_parse}" == "Default" ]]; then
+		if [[ "${named}" == @(Default|*.src|current|previous) ]]; then
+			echo_error " It's not allowed to compile Default database or using *.src symlinks"
+			echo_error " Create a new one instead"
+			exit 1
 		fi
+	fi
+	
+	#prevent to use Default or all symlinks
+	if [[ "${named}" == @(Default|*.src|previous|current) ]]; then 
+		echo_error " It's not allowed to compile Default database or using current|previous|*.src symlinks"
+		echo_error " Please pick another one or create a new one"
+		exit 1
+	fi
+	
+	# switch the current database if it's picked before deleting it
+	if [[ "${named}" == "${curr_parse}" ]]; then
+		echo_display " Copy ${named} to ${named}.backup"
+	    cp -rf "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_COMPILED}/${named}.backup" || die "Impossible to cp ${named} to ${named}.backup"
+   
+	    echo_display " Update live database to ${named}.backup"
+	    s6-rc-update -l "${LIVE_RC_PATH}" -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}.backup" || die "Impossible to update the new database"
+	   
+	    echo_display " Delete ${named} database"
+		rm -r "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to remove ${named}"
+			
+		echo_display " Update the current symlinks -> ${named}.backup"
+		make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}.backup" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
+		
+		echo_display " Make a symlinks ${named}.backup.src -> ${named}.backup"
+		make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}.backup" "${RC_DATABASE_COMPILED}" "${named}.backup.src" || die "Impossible to create src symlinks"
 	fi
 
 	# check exist or not
@@ -226,12 +243,14 @@ compile(){
 	fi
 	
 	# compile new database
-	s6-rc-compile -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_SOURCE}/${with_}" || die "Impossible to compile the new database"
+	echo_display " Compile ${named} with ${with} as source"
+	s6-rc-compile -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_SOURCE}/${with}" || die "Impossible to compile the new database"
 	
 	# keep the source location
-	make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${with_}" "${RC_DATABASE_COMPILED}" "${named}.src" || die "Impossible to create the symlinks for source location"
+	echo_display " Make a symlinks ${named}.src -> ${with}"
+	make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${with}" "${RC_DATABASE_COMPILED}" "${named}.src" || die "Impossible to create the symlinks for source location"
 	
-	unset named rc_curr curr curr_parse with_
+	unset named rc_curr curr curr_parse with
 }
 
 # ${1} name of the database to switch
@@ -239,7 +258,7 @@ switch(){
 	
 	local named rc_curr rc_first curr curr_parse prev prev_parse
 	local -a which_up prev_db
-	
+	# L'UTILISATEUR NE DOIT PAS UTILISER LES SYMLINKS
 	named="${1}"
 	rc_curr=1
 	rc_first=1
@@ -247,12 +266,7 @@ switch(){
 	curr_parse=${curr##*/}
 	prev=$(which_db previous)
 	prev_parse=${prev##*/}
-	
-	# need to know if it's the first use of s6opts
-	if [[ "${curr_parse}" == "default" ]] && [[ "${prev_parse}" == "default" ]]; then
-		rc_first=0
-	fi
-	
+	#named_source=$(readlink -v "${RC_DATABASE_COMPILED}/${named}.src")
 	# check if exist or not
 	check_dir "${RC_DATABASE_COMPILED}/${named}"
 	if (( $? )); then
@@ -260,25 +274,24 @@ switch(){
 	fi
 		
 	# change place of previous symlinks
+	echo_display " Update the previous symlinks to ${curr_parse}"
 	make_symlinks "-sfT" "${curr}" "${RC_DATABASE_COMPILED}" "previous" || die "Impossible to create previous symlinks"
 	
 	# udpate current database to new database
+	echo_display " Update live database to ${named}"
 	s6-rc-update -l "${LIVE_RC_PATH}" -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to update the new database"
 	
-	# search in old db for know what services is new 
+	# search in backup db for know what services is new 
 	# then bring up only the new services
 	
-	if (( ! rc_first)); then # first pass?
-	    s6-rc -l "${LIVE_RC_PATH}" -v"${VERBOSE}" -u change all-User
-	else
-	    curr_parse="${named}"
-	    prev=$(which_db previous)
-	    prev_parse="${prev##*/}"
+    curr_parse="${named}"
+    prev=$(which_db previous)
+    prev_parse="${prev##*/}"
 
-	    compare_db "${curr_parse}" "${prev_parse}"
-	fi
+    compare_db "${curr_parse}" "${prev_parse}"
 	
 	# update the symlinks to boot with the new database
+	echo_display " Update the current symlinks to ${named}"
 	make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
 	
 	unset named rc_curr rc_first curr curr_parse prev prev_parse 
@@ -291,9 +304,9 @@ all(){
 	local named
 	
 	named="${1}"
-	who_="${2}"
+	who="${2}"
 
-	compile  "${named}" "${who_}" 
+	compile  "${named}" "${who}" 
 	switch "${named}"
 	
 	unset named
@@ -523,7 +536,7 @@ disable(){
 
 		echo_display " Bringing down ${tidy_loop}"
 		s6-svc -q "${LIVE_CLASSIC_PATH}/${tidy_loop}"
-		#sleep 5
+	
 		check_dir "${CLASSIC_ENABLED}/${tidy_loop}"
 		if (( ! $? )); then
 			rm -rf "${CLASSIC_ENABLED}/${tidy_loop}" || die " Impossible to remove ${tidy_loop}"
@@ -836,15 +849,20 @@ parse_file(){
 # ${2} name of the bundle/service to bring up/down
 bringing(){
 	
-	local action named
+	local action named action_msg
 	
 	action="${1}"
 	named="${2}"
 	
-	echo_display " Bringing ${action} ${named}"
+	if [[ "${action}" == "u" ]]; then
+		action_msg="up"
+	else
+		action_msg="down"
+	fi
+	echo_display " Bringing ${action_msg} ${named}"
 	s6-rc -l "${LIVE_RC_PATH}" -v${VERBOSE} -"${action}" change "${named}"
 	
-	unset action named
+	unset action named action_msg
 }
 
 # ${1} current database
