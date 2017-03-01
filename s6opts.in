@@ -35,19 +35,21 @@ shellopts_set_unset "extglob" 0
 
 (( EUID == 0 )) || die " You must be run this script with root privileges"
 
-if [[ -z "${2}" ]] && [[ "${1}" != @(list|which_db|create|update) ]]; then
+if [[ -z "${2}" &&  "${1}" != @(list|which_db|create) ||  -z "${3}"  &&  "${1}" = @(add|delete|compile|all) ]]; then
 	usage
 	exit 1
 fi
 
-if [[ ! -h "${RC_DATABASE_COMPILED}/current" ]] || [[ ! -h "${RC_DATABASE_COMPILED}/previous" ]]; then
+if [[ ! -h "${RC_DATABASE_COMPILED}/current" ]] || [[ ! -h "${RC_DATABASE_COMPILED}/previous" ]] \
+	|| [[ ! -h "${RC_DATABASE_COMPILED}/Default.src" ]]; then
 	cat << EOF
 	
-To properly manage the service database, the symlinks current|previous must exist.
+To properly manage the service database, the symlinks current|previous|Default.src must exist.
 
 The default is :
-    /etc/s6/compiled/current -> /etc/s6/compiled/default
-    /etc/s6/compiled/previous -> /etc/s6/compiled/previous
+    /etc/s6-serv/enabled/rc/compiled/current -> /etc/s6-serv/enabled/rc/compiled/Default 
+    /etc/s6-serv/enabled/rc/compiled/previous -> /etc/s6-serv/enabled/rc/compiled/Default
+    /etc/s6-serv/enabled/rc/compiled/Default.src -> /etc/s6-serv/enabled/rc/source/default
 EOF
 exit 1
 fi

@@ -41,7 +41,7 @@ _list_delete(){
 _list_database(){
 	local list_dir
 	list_dir=( $RC_DATABASE_COMPILED/*(-/N:t) )
-	(( $#list_dir )) && _values database_name $list_dir && ret=0
+	(( $#list_dir )) && _values database_name ${list_dir[@]} && ret=0
 }
 
 _list_database_to_compile(){
