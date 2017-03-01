@@ -97,26 +97,33 @@ add(){
 		if (( ! $? )); then # it is a bundle
 			parse_file "${RC_AVAILABLE}/${tidy_loop}" "contents"
 			while read -d "," line; do
+				echo_display " Copy ${line} -> ${where}"
 				cp -rau "${RC_AVAILABLE}/${line}" "${RC_DATABASE_SOURCE}/${where}"
 			done <<< "${LIST_SERV[@]}"
 			LIST_SERV=()
+			echo_display " Copy ${tidy_loop} -> ${where}"
 			cp -rau "${RC_AVAILABLE}/${tidy_loop}" "${RC_DATABASE_SOURCE}/${where}" 
 				
 			# be sure that the name doesn't exist on file contents
 			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
 			if (( $? )); then
+				echo_display " Add entry ${tidy_loop} -> ${where}/All/contents"
 				echo "${tidy_loop}" >> "${RC_DATABASE_SOURCE}/${where}/All/contents"
 				# remove empty line
+				echo_display " Remove empty line -> ${where}/All/contents"
 				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 			fi
 		else
+			echo_display " Copy ${tidy_loop} -> ${where}"
 			cp -rau "${RC_AVAILABLE}/${tidy_loop}" "${RC_DATABASE_SOURCE}/${where}"
 		
 			# be sure that the name doesn't exist on file contents
 			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
 			if (( $? )); then
+				echo_display " Add entry ${tidy_loop} -> ${where}/All/contents"
 				echo "${tidy_loop}" >> "${RC_DATABASE_SOURCE}/${where}/All/contents"
 				# remove empty line
+				echo_display " Remove empty line -> ${where}/All/contents"
 				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 			fi
 		fi
@@ -153,22 +160,28 @@ delete(){
 		if (( ! $? )); then # it is a bundle
 			parse_file "${RC_DATABASE_SOURCE}/${where}/${tidy_loop}" "contents"
 			while read -d "," line; do
+				echo_display " Remove ${line} -> ${where}"
 				rm -r "${RC_DATABASE_SOURCE}/${where}/${line}"
 				search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${line}"
 				if (( ! $? )); then
+					echo_display " Remove entry ${line} -> ${where}/All/contents"
 					sed -i "s:${line}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 					# remove empty line
+					echo_display " Remove empty line -> ${where}/All/contents"
 					sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 				fi
 			done <<< "${LIST_SERV[@]}"
 			LIST_SERV=()
+			echo_display " Remove ${tidy_loop} -> ${where}"
 			rm -r "${RC_DATABASE_SOURCE}/${where}/${tidy_loop}" 
 			
 			# remove bundle name on file contents
 			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
 			if (( ! $? )); then
+				echo_display " Remove entry ${tidy_loop} -> ${where}/All/contents"
 				sed -i "s:${tidy_loop}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 				# remove empty line
+				echo_display " Remove empty line -> ${where}/All/contents"
 				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 			fi
 		else
@@ -176,8 +189,10 @@ delete(){
 			# remove service name on file contents
 			search_in_file "${RC_DATABASE_SOURCE}/${where}/All" "contents" "${tidy_loop}"
 			if (( ! $? )); then
+				echo_display " Remove entry ${tidy_loop} -> ${where}/All/contents"
 				sed -i "s:${tidy_loop}::" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 				# remove empty line
+				echo_display " Remove empty line -> ${where}/All/contents"
 				sed -i "/^\s*$/d" "${RC_DATABASE_SOURCE}/${where}/All/contents"
 			fi
 		fi
@@ -191,12 +206,11 @@ delete(){
 # ${2} name of the source to compile the database
 compile(){
 	
-	local named rc_curr curr curr_parse with
-	
+	local named with curr curr_parse prev prev_parse
+		
 	named="${1}"
 	with="${2}"
 		
-	rc_curr=1
 	curr=$(which_db current)
 	curr_parse=${curr##*/}
 	prev=$(which_db previous)
@@ -250,7 +264,7 @@ compile(){
 	echo_display " Make a symlinks ${named}.src -> ${with}"
 	make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${with}" "${RC_DATABASE_COMPILED}" "${named}.src" || die "Impossible to create the symlinks for source location"
 	
-	unset named rc_curr curr curr_parse with
+	unset named with curr curr_parse prev prev_parse
 }
 
 # ${1} name of the database to switch
@@ -258,41 +272,46 @@ switch(){
 	
 	local named rc_curr rc_first curr curr_parse prev prev_parse
 	local -a which_up prev_db
-	# L'UTILISATEUR NE DOIT PAS UTILISER LES SYMLINKS
+	
 	named="${1}"
-	rc_curr=1
-	rc_first=1
 	curr=$(which_db current)
 	curr_parse=${curr##*/}
-	prev=$(which_db previous)
-	prev_parse=${prev##*/}
-	#named_source=$(readlink -v "${RC_DATABASE_COMPILED}/${named}.src")
+		
+	# prevent to use symlinks
+	if [[ "${named}" == @(*.src|current|previous) ]]; then
+			echo_error " It's not allowed to use symlinks"
+			echo_error " Pick a name instead"
+			exit 1
+	fi
+	
 	# check if exist or not
 	check_dir "${RC_DATABASE_COMPILED}/${named}"
 	if (( $? )); then
 		die "$named doesn't exist, please choose another one"
 	fi
-		
-	# change place of previous symlinks
-	echo_display " Update the previous symlinks to ${curr_parse}"
-	make_symlinks "-sfT" "${curr}" "${RC_DATABASE_COMPILED}" "previous" || die "Impossible to create previous symlinks"
 	
 	# udpate current database to new database
 	echo_display " Update live database to ${named}"
 	s6-rc-update -l "${LIVE_RC_PATH}" -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to update the new database"
 	
+	# change place of previous symlinks
+	echo_display " Update the previous symlinks -> ${curr_parse}"
+	make_symlinks "-sfT" "${curr}" "${RC_DATABASE_COMPILED}" "previous" || die "Impossible to create previous symlinks"
+	
+	# update the symlinks to boot with the new database
+	echo_display " Update the current symlinks -> ${named}"
+	make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
+	
 	# search in backup db for know what services is new 
 	# then bring up only the new services
 	
-    curr_parse="${named}"
+	# change curr_parse to the new live database
+	curr=$(which_db current)
+	curr_parse=${curr##*/}
     prev=$(which_db previous)
     prev_parse="${prev##*/}"
 
     compare_db "${curr_parse}" "${prev_parse}"
-	
-	# update the symlinks to boot with the new database
-	echo_display " Update the current symlinks to ${named}"
-	make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
 	
 	unset named rc_curr rc_first curr curr_parse prev prev_parse 
 }
@@ -855,11 +874,11 @@ bringing(){
 	named="${2}"
 	
 	if [[ "${action}" == "u" ]]; then
-		action_msg="up"
+		action_msg="${bblue}up${reset}"
 	else
-		action_msg="down"
+		action_msg="${bred}down${reset}"
 	fi
-	echo_display " Bringing ${action_msg} ${named}"
+	echo_display " ${reset}Bringing ${action_msg} ${named}"
 	s6-rc -l "${LIVE_RC_PATH}" -v${VERBOSE} -"${action}" change "${named}"
 	
 	unset action named action_msg
@@ -869,8 +888,8 @@ bringing(){
 # ${2} previous database
 compare_db(){
 	
-	local curr prev check line_
-	local -a curr_db which_up
+	local curr prev check line
+	local -a curr_db which_up which_down
 	
 	curr="${1}"
 	prev="${2}"
@@ -881,15 +900,22 @@ compare_db(){
 		search_in_db "" "${prev}" "${check}"
 		if (( $? )); then
 			which_up+=($check,)
+		else
+			which_down+=($check,)
 		fi
 	done <<< "${curr_db[@]}"
 	
 	# bring up the new service
-	while read -d "," line_; do
-		bringing "u" "$line_"
+	while read -d "," line; do
+		bringing "d" "$line"
+	done <<<  "${which_down[@]}"
+	
+	# bring up the new service
+	while read -d "," line; do
+		bringing "u" "$line"
 	done <<<  "${which_up[@]}"
 	
-	unset curr prev check line_ curr_db which_up
+	unset curr prev check line curr_db which_up which_down
 }
 
 # {1} template to copy, classic or rc
