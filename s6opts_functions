@@ -234,18 +234,23 @@ compile(){
 	
 	# switch the current database if it's picked before deleting it
 	if [[ "${named}" == "${curr_parse}" ]]; then
+		check_dir "${RC_DATABASE_COMPILED}/${named}.backup"
+		if (( ! $? )); then
+			named="${named}.backup"
+			echo named:compile:$named 
+		fi
 		echo_display " Copy ${named} to ${named}.backup"
 	    cp -rf "${RC_DATABASE_COMPILED}/${named}" "${RC_DATABASE_COMPILED}/${named}.backup" || die "Impossible to cp ${named} to ${named}.backup"
    
 	    echo_display " Update live database to ${named}.backup"
 	    s6-rc-update -l "${LIVE_RC_PATH}" -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}.backup" || die "Impossible to update the new database"
-	   
+		
+		echo_display " Update the current symlinks -> ${named}.backup"
+		make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}.backup" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
+	    
 	    echo_display " Delete ${named} database"
 		rm -r "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to remove ${named}"
 			
-		echo_display " Update the current symlinks -> ${named}.backup"
-		make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}.backup" "${RC_DATABASE_COMPILED}" "current" || die "Impossible to create current symlinks"
-		
 		echo_display " Make a symlinks ${named}.backup.src -> ${named}.backup"
 		make_symlinks "-sfT" "${RC_DATABASE_COMPILED}/${named}.backup" "${RC_DATABASE_COMPILED}" "${named}.backup.src" || die "Impossible to create src symlinks"
 	fi
@@ -253,6 +258,7 @@ compile(){
 	# check exist or not
 	check_dir "${RC_DATABASE_COMPILED}/${named}"
 	if (( ! $? )); then
+		echo_display " Delete ${named} database"
 		rm -r "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to remove ${named}"
 	fi
 	
@@ -276,12 +282,16 @@ switch(){
 	named="${1}"
 	curr=$(which_db current)
 	curr_parse=${curr##*/}
-		
+	prev=$(which_db previous)
+    prev_parse="${prev##*/}"
+    
+    future="${named}"
+    
 	# prevent to use symlinks
 	if [[ "${named}" == @(*.src|current|previous) ]]; then
-			echo_error " It's not allowed to use symlinks"
-			echo_error " Pick a name instead"
-			exit 1
+		echo_error " It's not allowed to use symlinks"
+		echo_error " Pick a name instead"
+		exit 1
 	fi
 	
 	# check if exist or not
@@ -290,6 +300,11 @@ switch(){
 		die "$named doesn't exist, please choose another one"
 	fi
 	
+	
+	compare_db "${named}" "${curr_parse}" 1	#need to switch between named and curr_parse, 
+											#normaly the function compare_db wait for the current database
+											#as first arguments.
+		
 	# udpate current database to new database
 	echo_display " Update live database to ${named}"
 	s6-rc-update -l "${LIVE_RC_PATH}" -v"${VERBOSE}" "${RC_DATABASE_COMPILED}/${named}" || die "Impossible to update the new database"
@@ -311,7 +326,7 @@ switch(){
     prev=$(which_db previous)
     prev_parse="${prev##*/}"
 
-    compare_db "${curr_parse}" "${prev_parse}"
+    compare_db "${curr_parse}" "${prev_parse}" 0
 	
 	unset named rc_curr rc_first curr curr_parse prev prev_parse 
 }
@@ -355,9 +370,23 @@ list(){
 	local -a classic_list rc_oneshots rc_bundles rc_longruns
 	
 	named="${1}"
+	curr=$(which_db current)
+	curr_parse=${curr##*/}
+    prev=$(which_db previous)
+    prev_parse="${prev##*/}"
+	
+	#prevent to use symlinks
+	if [[ "${named}" == @(*.src|current|previous) ]]; then
+			echo_error " It's not allowed to use symlinks"
+			echo_error " Pick a name instead"
+			exit 1
+	fi
 	
 	classic_list=$(ls -1 ${CLASSIC_ENABLED}| sort)
 	
+	printf "\n"
+	printf "%s\n" "${bold}current${reset} -> ${bold}${curr_parse}${reset}"
+	printf "%s\n" "${bold}previous${reset} -> ${bold}${prev_parse}${reset}"
 	
 	if (( ! "${#named}" )); then
 
@@ -413,7 +442,7 @@ list(){
 		done
 	fi
 	
-	unset named rc_list tidy_loop
+	unset named rc_list tidy_loop curr prev curr_parse prev_parse
 	
 }
 
@@ -452,7 +481,7 @@ remove(){
 	
 	src=$(readlink -v "${RC_DATABASE_COMPILED}/${curr}.src")
 	src=${src##*/}
-
+	
 	for tidy_loop in ${named[@]}; do
 	
 		if [[ "${tidy_loop}" == "default" ]] || [[ "${tidy_loop}" == "${src}" ]]; then
@@ -473,6 +502,17 @@ remove_db(){
 	
 	named=( ${1} )
 	curr=$(which_db current)
+	
+	if [[ "${named}" == @(*.src|current|previous) ]]; then
+		echo_error " It's not allowed to use symlinks"
+		echo_error " Pick a name instead"
+		exit 1
+	fi
+	if  [[ "${named}" == "Default" ]]; then
+		echo_error " It's not allowed to remove Default database"
+		echo_error " Please pick another one"
+		exit 1
+	fi		
 	
 	for tidy_loop in ${named[@]}; do
 			
@@ -571,7 +611,52 @@ disable(){
 	
 	unset named tidy_loop link_	
 }
-
+# ${1} name of the service to add at the current database
+# can be a list but need to be double quoted 
+# e.g update "dbus-daemon bundle-Nfs"
+update(){
+		
+	local curr tidy_loop src
+	local -a named
+	
+	named=( ${1} )
+	curr=$(which_db current)
+	curr=${curr##*/}
+	
+	if [[ "${curr}" =~ "Default" ]]; then
+		echo_error " It's not allowed to update ${curr} database"
+		echo_error " Please switch your current database to another one"
+		exit 1
+	fi
+	
+	if [[ ! -h "${RC_DATABASE_COMPILED}/${curr}.src" ]]; then
+		echo_info " Your current database is : ${curr}"
+		echo_info " Impossible to determine the source for compiling your current database"
+		echo_info " Please specify the source database name"
+		read database_src
+		
+		make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${database_src}" "${RC_DATABASE_COMPILED}" "${curr}.src" || die "Impossible to create the symlinks for source location"
+	fi
+	
+	src=$(readlink -v "${RC_DATABASE_COMPILED}/${curr}.src")
+	src=${src##*/}
+		
+	for tidy_loop in ${named[@]}; do
+	
+		check_dir "${RC_DATABASE_SOURCE}/${src}/${tidy_loop}"
+		if (( $? )); then
+			echo_display " Add ${tidy_loop} at ${src} database"
+			add "${src}" "${tidy_loop}"
+		else
+			echo_display " Delete ${tidy_loop} from ${src} database"
+			delete "${src}" "${tidy_loop}"
+		fi
+	done
+	
+	all "${curr}" "${src}"
+	
+	unset named curr src tidy_loop
+}
 create(){
 	
 	local ans
@@ -774,53 +859,6 @@ edit(){
 	
 }
 
-# ${1} name of the service to add at the current database
-# can be a list but need to be double quoted 
-# e.g update "dbus-daemon bundle-Nfs"
-update(){
-		
-	local curr tidy_loop src
-	local -a named
-	
-	named=( ${1} )
-	curr=$(which_db current)
-	curr=${curr##*/}
-	
-	if [[ "${curr}" =~ "Default" ]]; then
-		echo_error " It's not allowed to update ${curr} database"
-		echo_error " Please switch your current database to another one"
-		exit 1
-	fi
-	
-	if [[ ! -h "${RC_DATABASE_COMPILED}/${curr}.src" ]]; then
-		echo_info " Your current database is : ${curr}"
-		echo_info " Impossible to determine the source for compiling your current database"
-		echo_info " Please specify the source database name"
-		read database_src
-		
-		make_symlinks "-sfT" "${RC_DATABASE_SOURCE}/${database_src}" "${RC_DATABASE_COMPILED}" "${curr}.src" || die "Impossible to create the symlinks for source location"
-	fi
-	
-	src=$(readlink -v "${RC_DATABASE_COMPILED}/${curr}.src")
-	src=${src##*/}
-		
-	for tidy_loop in ${named[@]}; do
-	
-		check_dir "${RC_DATABASE_SOURCE}/${src}/${tidy_loop}"
-		if (( $? )); then
-			echo_info " Add ${tidy_loop} at ${src} database"
-			add "${src}" "${tidy_loop}"
-		else
-			echo_info " Delete ${tidy_loop} from ${src} database"
-			delete "${src}" "${tidy_loop}"
-		fi
-	done
-	
-	all "${curr}" "${src}"
-	
-	unset named curr src tidy_loop
-}
-
 ##############################################
 ##				sub functions				##
 ##############################################
@@ -831,39 +869,89 @@ update(){
 # return 0 on success, 1 on fail
 search_in_db(){
 	
-	local path_file named search line_ in_db
+	local path_file named search line in_db
+	local -a list_all
 	
 	path_file="${1:-${RC_DATABASE_COMPILED}}"
 	named="${2:-current}"
 	search="${3}"
 	in_db="${path_file}/${named}"
+	list_all=$( (s6-rc-db -c "${in_db}" list all) )
 	
-	while read line_; do
-		case $line_ in
-			$search) return 0 && break ;;
-			*) return 1 ;;
+	for line in ${list_all[@]}; do
+		case $line in
+			$search) return 0;;
+			*) rc=1;;
 		esac
-	done < <(s6-rc-db -c "${in_db}" list all)
-	
-	unset path_file named search line_ in_db
+	done
+	if (( "${rc}" )); then
+		return 1
+	fi
+	unset path_file named search line in_db list_all
 }
 
-# ${1} path to the file
-# ${2} file to parse
-parse_file(){
+# ${1} current database
+# ${2} previous database
+# ${3} signal to pass up or down
+#		0 for up, 1 for down
+compare_db(){
 	
-	local check path_file named
+	local curr prev check line signal
+	local -a curr_db which_up which_down
 	
-	path_file="${1}"
-	named="${2}"
+	signal="${3}"
+	reverse="${4}"
 	
-	while read check; do
-		LIST_SERV+=($check,)
-	done < "${path_file}/${named}"
-
-	unset check path_file named
+	curr="${1}"
+	prev="${2}"
+	curr_db=( $(s6-rc-db -c "${RC_DATABASE_COMPILED}/${curr}" list all) )
+	prev_db=( $(s6-rc-db -c "${RC_DATABASE_COMPILED}/${prev}" list all) )
+																				#echo curr_db::${curr_db[@]}
+																				#echo prev_db::${prev_db[@]}
+	
+	if [ "${#curr_db}" > "${#prev_db}" ]; then
+		long_db="${curr_db[@]}"
+		short_db="${prev_db[@]}"
+	else
+		long_db="${prev_db[@]}"
+		short_db="${curr_db[@]}"
+	fi
+	
+	for check in ${long_db[@]}; do
+		#echo checku::$check
+		search_in_db "" "${prev}" "${check}"
+		if (( $? )); then
+			which_up+=($check,)
+			#echo ${bold}check_up::$check${reset}
+		fi
+	done 
+	
+	for check in ${short_db[@]}; do
+		#echo checkd::$check
+	 	search_in_db "" "${curr}" "${check}"
+		if ((  $? )); then
+			which_down+=($check,)
+			#echo ${bold}check_down::$check${reset}
+		fi
+	done 
+	
+	# bring up the new service
+	if (( ! "${signal}" )); then
+		while read -d "," line; do
+			bringing "u" "$line"
+		done <<<  "${which_up[@]}"
+	fi
+	
+	# bring down the new service
+	if (( "${signal}" )); then
+		while read -d "," line; do
+			bringing "d" "$line"
+		done <<<  "${which_down[@]}"
+	fi
+	
+	
+	unset curr prev check line curr_db which_up which_down
 }
-
 # ${1} action, must be u for up or d for down
 # ${2} name of the bundle/service to bring up/down
 bringing(){
@@ -884,38 +972,20 @@ bringing(){
 	unset action named action_msg
 }
 
-# ${1} current database
-# ${2} previous database
-compare_db(){
+# ${1} path to the file
+# ${2} file to parse
+parse_file(){
 	
-	local curr prev check line
-	local -a curr_db which_up which_down
+	local check path_file named
 	
-	curr="${1}"
-	prev="${2}"
+	path_file="${1}"
+	named="${2}"
+	
+	while read check; do
+		LIST_SERV+=($check,)
+	done < "${path_file}/${named}"
 
-	mapfile -t curr_db < <(s6-rc-db -c "${RC_DATABASE_COMPILED}/${curr}" list all)
-
-	while read -d " " check; do
-		search_in_db "" "${prev}" "${check}"
-		if (( $? )); then
-			which_up+=($check,)
-		else
-			which_down+=($check,)
-		fi
-	done <<< "${curr_db[@]}"
-	
-	# bring up the new service
-	while read -d "," line; do
-		bringing "d" "$line"
-	done <<<  "${which_down[@]}"
-	
-	# bring up the new service
-	while read -d "," line; do
-		bringing "u" "$line"
-	done <<<  "${which_up[@]}"
-	
-	unset curr prev check line curr_db which_up which_down
+	unset check path_file named
 }
 
 # {1} template to copy, classic or rc
