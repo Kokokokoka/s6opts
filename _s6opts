@@ -1,5 +1,5 @@
 #compdef s6opts
-# Copyright (C) 2015-2016 Eric Vidal <eric@obarun.org>
+# Copyright (C) 2015-2017 Eric Vidal <eric@obarun.org>
 #
 # Completion for s6opts
 #
@@ -70,7 +70,7 @@ case $state in
 			'verbose:be more or less verbose (permanent change)'
 			'remove:remove a source service database'
 			'remove_db:remove a compiled service database'
-			'which_db:current/previous service database used'
+			'which_db:current/previous service database'
 			'enable:enable a classic service'
 			'disable:disable a classic service'
 			'create:create a service'
