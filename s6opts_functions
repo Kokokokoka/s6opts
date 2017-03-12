@@ -461,7 +461,7 @@ list(){
 			exit 1
 	fi
 	
-	classic_list=$(ls -1 ${CLASSIC_ENABLED}| sort)
+	classic_list=$(find ${CLASSIC_ENABLED} -maxdepth 1 -mindepth 1 -type d | sed 's:.*/::')
 	
 	printf "\n"
 	printf "%s\n" "${bold}current${reset} -> ${bold}${curr}${reset}"
