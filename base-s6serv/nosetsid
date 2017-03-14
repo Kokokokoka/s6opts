@@ -1,0 +1,2 @@
+#optional empty file states that s6-supervise will 
+#not make the service a process group and session leader
