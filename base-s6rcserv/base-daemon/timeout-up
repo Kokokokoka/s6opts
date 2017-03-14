@@ -1,0 +1,6 @@
+#for atomic services, integer milliseconds.                                 
+#s6-rc will wait for successful completion of the service start
+#if it takes longer then failure, if this file is empty 
+#then s6-rc will wait indefinetly for the service to start
+
+
