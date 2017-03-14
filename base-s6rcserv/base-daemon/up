@@ -1,2 +1,4 @@
+#mandatory,for oneshots, which must  
+#contain a single Unix command line. 
 #!/usr/local/bin/execlineb -P
 fdmove -c 2 1
