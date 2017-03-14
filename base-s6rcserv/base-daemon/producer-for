@@ -1,0 +1,4 @@
+#optional file, longrun, if this file exists, then it must contain
+#the name of another longrun service servicelog; service is then 
+#declared as a producer for servicelog. servicelog must also, in its own 
+#definition directory, be declared as a consumer for service.  
