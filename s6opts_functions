@@ -696,32 +696,95 @@ disable(){
 	
 	unset named tidy_loop link_	
 }
-
-create(){
+# ${1} first pass or not, 0 for yes, 1 for not 
+manage_create(){
 	
-	local ans
+	local manage_cmd ans pass
+	pass="${1}"
 	
-	# create an rc or classic service
-	echo_display " Do you want to create a rc or a classic service"
-	echo_display " Enter 0 for classic, 1 for rc"
-	
-	read ans
-	
-	while [[ "${ans}" != @(0|1) ]]; do
-		echo_retry " Please answer 0 or 1"
-		read ans
-	done
-	
-	if (( ! "${ans}" )); then
-		create_classic
-	else
-		create_rc
+	if (( "${pass}" )); then
+		echo_display " Before you proceed, it's highly adviced to read the documentation on skarnet.org."
+		echo_display " You can see a guide for creating service at every time taping help."
+		echo_display " You can see command available by taping command"
 	fi
 	
-	unset ans
+	read -ep "Manage :: please enter your command > " ans
+	manage_cmd="${ans}"
+	
+	case $manage_cmd in
+			@(classic|c))
+				manage_create_classic "classic"
+				;;
+			@(rc|r))
+				manage_create_rc "rc"
+				;;
+			@(help|h))
+				manage_aur_guide "guide"
+				;;
+			@(command|co))
+				manage_create_command
+				;;
+			quit)
+				exit
+				;;
+			*)
+				manage_create_command
+				manage_create 1
+				;;
+	esac
+}
+manage_aur_guide(){
+		cat << EOF
+${bold}s6 service creation guide.${reset}
+  
+  Before creating one it's good to answer those questions:
+1. When the serice should be started?
+2. Do you want your service to be default up or down?
+3. How long does it take for the service to finish?
+4. What is the enviroment in which your service will be running?
+5. Where do you want to log your service?
+6. Which privs should this service have?
+7. Should your service be a process group and session leader?
+8. Does your service have the readiness notification support?
+Let's take a look at
+the s6-rc scripts. Your script can be a bundle one which launches
+multiple subscripts. Your script can become the daemon one or the log
+one (should have at least one log provider) you can also create a
+preparation service which will do some oneshot thingies.
+I. When you want to create the bundle:
+there should be two files
+1) contents: this file represents what are the services that are bundled, one name per line,Whitespace at the beginning of a line is ignored, but trailing whitespace is not. Lines starting with a # character are ignored. The file defines the services that will be represented by the bundle named service.
+2) type: there you specify "bundle"
+II. Now let's take a brief look at the daemon one:
+1) dependencies: optional file, this is the dependencies of the service This file must be a list of service names, one per line. Whitespace at the beginning of a line is ignored, but trailing whitespace is not. Lines starting with a # character are ignored. The file defines the direct dependencies of service, i.e. the services that must be up in order for service to work properly. (self explanatory)
+2) down: optional file, the s6-service will wait for s6-svc -u
+3) finish:  optional file, can be any executable file, is being executed every time the run script dies. Used to clean up  non-volatile data such as the filesystem after the supervised process has been killed (http://www.skarnet.org/software/s6/servicedir.html)
+4) notification-fd: optional regular file. if this file exists it means that the service supports readiness notification. this file must contain only one unsigned int which is the nuber of the fd that the service writes its notifications to.
+5) nosetsid: optional file, states that   s6-supervise will not make the service a process group and session leader; the service will be run in the same process group as s6-supervise. otherwise the service will have its own group and will be the session leader
+6) pipeline-name: optional file,  If this file exists along with a producer-for file, and there is no consumer-for file, then a bundle will automatically be created, named with the content of the pipeline-name file, and containing all the services in the pipeline that starts at service. See below for more about pipelining. The pipeline-name file is ignored if service is not a first producer. (http://skarnet.org/software/s6-rc/s6-rc-compile.html)
+7) producer-for: optional file, has the name of another longrun service which will log this service, the logger must declare that it's the consumer by adding consumer-for
+8) run:  mandatory regular file, this file has the startup and run this service
+9) timeout-down: optional file, maximum duration of the down execution, integer milliseconds.
+10) timeout-finish:  optional file, maximum duration of the finish execution, integer milliseconds.
+11) timeout-up: optional file, maximum duration of the up execution, integer milliseconds.
+12) type: contains only one word oneshot, longrun or bundle
+13) up:
+EOF
+}
+manage_create_command(){
+	printf "\n"
+	printf "%-15s\n" "The following command are available" >&1
+	printf "\n"
+	printf "%-15s %-15s\n" "     classic" "Create a classic service" >&1
+	printf "%-15s %-15s\n" "     rc" "Create a rc service" >&1
+	printf "%-15s %-15s\n" "     help" "Show the s6 service guide" >&1
+	printf "%-15s %-15s\n" "     command" "Show this help" >&1
+	printf "\n"
+	printf "%-15s\n" "The first letter can be used e.g. c for classic." >&1
+	printf "%-15s\n" "A special case exist for command, enter co." >&1
 }
 
-create_classic(){
+manage_create_classic(){
 	
 	local named
 	
@@ -776,7 +839,7 @@ create_classic(){
 	unset named
 }
 
-create_rc(){
+manage_create_rc(){
 	
 	local named work_dir tidy_loop curr
 	local -a templates_list final_list
@@ -856,7 +919,29 @@ create_rc(){
 	
 	unset named work_dir tidy_loop templates_list final_list curr
 }
-
+create_guide(){
+	
+	local title
+	
+	title="${1}"
+	
+	case "${cmd}" in
+		general)
+			echo " general explanation"
+			;;
+		classic)
+			echo "explanation of classic service"
+			;;
+		rc)
+			echo "explanation of rc service"
+			;;
+		*)
+			break
+			;;
+	esac
+	
+	unset title
+}
 # ${1} name of the service
 edit(){
 	
