@@ -919,29 +919,7 @@ manage_create_rc(){
 	
 	unset named work_dir tidy_loop templates_list final_list curr
 }
-create_guide(){
-	
-	local title
-	
-	title="${1}"
-	
-	case "${cmd}" in
-		general)
-			echo " general explanation"
-			;;
-		classic)
-			echo "explanation of classic service"
-			;;
-		rc)
-			echo "explanation of rc service"
-			;;
-		*)
-			break
-			;;
-	esac
-	
-	unset title
-}
+
 # ${1} name of the service
 edit(){
 	
