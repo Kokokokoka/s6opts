@@ -1,3 +1,5 @@
+#mandatory, for longruns, this file contains 
+#the start procedure for longrun service
 #!/usr/local/bin/execlineb -P
 fdmove -c 2 1
 
