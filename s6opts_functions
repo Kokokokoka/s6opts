@@ -704,8 +704,8 @@ manage_create(){
 	
 	if (( "${pass}" )); then
 		echo_display " Before you proceed, it's highly adviced to read the documentation on skarnet.org."
-		echo_display " You can see a guide for creating service at every time taping help."
-		echo_display " You can see command available by taping command"
+		echo_display " You can see a guide for creating service at every time taping guide."
+		echo_display " You can see command available by taping help"
 	fi
 	
 	read -ep "Manage :: please enter your command > " ans
@@ -718,17 +718,17 @@ manage_create(){
 			@(rc|r))
 				manage_create_rc "rc"
 				;;
-			@(help|h))
-				manage_aur_guide "guide"
+			@(guide|g))
+				manage_aur_guide
 				;;
-			@(command|co))
-				manage_create_command
+			@(help|h))
+				manage_create_help
 				;;
 			quit)
 				exit
 				;;
 			*)
-				manage_create_command
+				manage_create_help
 				manage_create 1
 				;;
 	esac
@@ -737,24 +737,27 @@ manage_aur_guide(){
 		cat << EOF
 ${bold}s6 service creation guide.${reset}
   
-  Before creating one it's good to answer those questions:
-1. When the serice should be started?
+Before creating one it's good to answer those questions:
+
+1. When the service should be started?
 2. Do you want your service to be default up or down?
 3. How long does it take for the service to finish?
 4. What is the enviroment in which your service will be running?
 5. Where do you want to log your service?
 6. Which privs should this service have?
 7. Should your service be a process group and session leader?
-8. Does your service have the readiness notification support?
-Let's take a look at
-the s6-rc scripts. Your script can be a bundle one which launches
-multiple subscripts. Your script can become the daemon one or the log
-one (should have at least one log provider) you can also create a
-preparation service which will do some oneshot thingies.
-I. When you want to create the bundle:
-there should be two files
-1) contents: this file represents what are the services that are bundled, one name per line,Whitespace at the beginning of a line is ignored, but trailing whitespace is not. Lines starting with a # character are ignored. The file defines the services that will be represented by the bundle named service.
-2) type: there you specify "bundle"
+8. Does your service have the readliness notification support?
+
+${bold}Files for rc service.${reset}
+	Your script can be a bundle one which launches
+	multiple subscripts. Your script can become the daemon one or the log
+	one (should have at least one log provider) you can also create a
+	preparation service which will do some oneshot thingies.
+	
+	I. When you want to create the bundle:
+		there should be two files
+		1) contents: this file represents what are the services that are bundled, one name per line,Whitespace at the beginning of a line is ignored, but trailing whitespace is not. Lines starting with a # character are ignored. The file defines the services that will be represented by the bundle named service.
+		2) type: there you specify "bundle"
 II. Now let's take a brief look at the daemon one:
 1) dependencies: optional file, this is the dependencies of the service This file must be a list of service names, one per line. Whitespace at the beginning of a line is ignored, but trailing whitespace is not. Lines starting with a # character are ignored. The file defines the direct dependencies of service, i.e. the services that must be up in order for service to work properly. (self explanatory)
 2) down: optional file, the s6-service will wait for s6-svc -u
@@ -771,14 +774,15 @@ II. Now let's take a brief look at the daemon one:
 13) up:
 EOF
 }
-manage_create_command(){
+manage_create_help(){
 	printf "\n"
 	printf "%-15s\n" "The following command are available" >&1
 	printf "\n"
 	printf "%-15s %-15s\n" "     classic" "Create a classic service" >&1
 	printf "%-15s %-15s\n" "     rc" "Create a rc service" >&1
-	printf "%-15s %-15s\n" "     help" "Show the s6 service guide" >&1
-	printf "%-15s %-15s\n" "     command" "Show this help" >&1
+	printf "%-15s %-15s\n" "     guide" "Show the s6 service guide" >&1
+	printf "%-15s %-15s\n" "     help" "Show this help" >&1
+	printf "%-15s %-15s\n" "     quit" "Exit from script" >&1
 	printf "\n"
 	printf "%-15s\n" "The first letter can be used e.g. c for classic." >&1
 	printf "%-15s\n" "A special case exist for command, enter co." >&1
