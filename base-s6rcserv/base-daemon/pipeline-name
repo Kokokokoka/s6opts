@@ -1,0 +1,4 @@
+#optional file, longrun, if this file exists along with a producer-for file, 
+#and there is no consumer-for file, then a bundle will automatically 
+#be created, named with the content of the pipeline-name file, and 
+#containing all the services in the pipeline that starts at service. 
