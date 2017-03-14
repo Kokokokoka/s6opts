@@ -1,2 +1,7 @@
+#for oneshots, optional, if no down file is provided in the source 
+#definition directory, then it is treated as the empty script. 
+#If a script is empty, then s6-rc will consider that the corresponding 
+#transition for this service does nothing and always succeeds.
+
 
 
