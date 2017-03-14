@@ -101,7 +101,7 @@ case "${1}" in
 		disable "${opts[@]}"
 		;;
 	create)
-		create
+		manage_create 0
 		;;
 	edit)
 		edit "${opts}"
