@@ -1,3 +1,6 @@
+#optional file, executed every time ./run dies, the main
+#purpose of this file is to clean the env, by default, 
+#a finish script must do its work and exit in less than 5 seconds
 #!/usr/local/bin/execlineb -P
 fdmove -c 2 1
 
