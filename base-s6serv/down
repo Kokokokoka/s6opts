@@ -1,1 +1,2 @@
-
+#optional file, empty, if exists then default  
+#state of the service is considered down
