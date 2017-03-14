@@ -1,3 +1,5 @@
+#mandatory file, has the command which 
+#is used to launch the service
 #!/usr/local/bin/execlineb -P
 fdmove -c 2 1
 
